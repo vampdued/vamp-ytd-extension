@@ -1,0 +1,21 @@
+# Node
+node_modules/
+
+# Build
+dist/
+build/
+out/
+
+# Logs
+*.log
+
+# Environment
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
