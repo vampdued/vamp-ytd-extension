@@ -21,9 +21,9 @@ import (
 // ==============================================================================
 
 const (
-	cookiesYT   = `C:\Scripts\cookies-yt.txt`
-	cookiesJHS  = `C:\Scripts\cookies-jhs.txt`
-	downloadDir = `D:\MEDIA\YT-DL`
+	cookiesYT   = "/home/vampdued/.config/vampytd/cookies-yt.txt"
+	cookiesJHS  = "/home/vampdued/.config/vampytd/cookies-jhs.txt"
+	downloadDir = "/home/vampdued/Downloads/VampYTD"
 	ytdlp       = "yt-dlp"
 	ffmpeg      = "ffmpeg"
 )

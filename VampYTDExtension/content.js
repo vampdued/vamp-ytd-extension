@@ -1,7 +1,7 @@
 // --- Professional Material Icons (SVGs) ---
-const downloadIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>`;
+const downloadIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>`;
 
-const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="20" viewBox="0 -960 960 960" width="20" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
+const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
 
 // --- Utility: Trigger Download & Animate Button ---
 function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
@@ -13,7 +13,7 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
         buttonElement.style.backgroundColor = '#4CAF50'; // Success green
         buttonElement.style.transform = 'scale(1.1)';
     } else {
-        buttonElement.innerHTML = `${checkIconSvg} <span style="margin-left: 6px;">Sent</span>`;
+        buttonElement.innerHTML = `${checkIconSvg} <span style="margin-left: 8px;">Sent</span>`;
         // Make it green on success
         buttonElement.style.color = '#fff';
         buttonElement.style.backgroundColor = '#4CAF50'; 
@@ -40,34 +40,35 @@ function injectWatchPageButton() {
         const btn = document.createElement('button');
         btn.id = 'vampytd-watch-btn';
         
-        const originalContent = `${downloadIconSvg} <span style="margin-left: 6px; font-weight: 500;">VampYTD</span>`;
+        const originalContent = `${downloadIconSvg} <span style="margin-left: 8px; font-weight: 500;">VampYTD</span>`;
         btn.innerHTML = originalContent;
         
-        // Use YouTube's native CSS variables
+        // Use YouTube's native CSS variables and styling
         btn.style.cssText = `
-            background-color: var(--yt-spec-button-chip-background-hover, rgba(255, 255, 255, 0.1));
-            color: var(--yt-spec-text-primary, inherit);
+            background-color: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
+            color: var(--yt-spec-text-primary);
             border: none;
             padding: 0 16px;
             height: 36px;
             border-radius: 18px;
             font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             margin-right: 8px;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             font-family: "Roboto", "Arial", sans-serif;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
             box-sizing: border-box;
-            width: auto;
-            min-width: auto;
+            white-space: nowrap;
         `;
 
         btn.onmouseover = () => {
-            btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background, rgba(255, 255, 255, 0.2))';
+            btn.style.backgroundColor = 'var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1))';
         };
         btn.onmouseout = () => {
-            btn.style.backgroundColor = 'var(--yt-spec-button-chip-background-hover, rgba(255, 255, 255, 0.1))';
+            btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05))';
         };
         btn.onmousedown = () => { btn.style.transform = 'scale(0.95)'; };
         btn.onmouseup = () => { btn.style.transform = 'scale(1)'; };
@@ -76,7 +77,7 @@ function injectWatchPageButton() {
             triggerDownload(window.location.href, btn, originalContent, false);
         });
 
-        // Insert exactly at the start of the action buttons (before Share)
+        // Insert exactly at the start of the action buttons (before Like)
         menuContainer.insertBefore(btn, menuContainer.firstChild);
     }
 }

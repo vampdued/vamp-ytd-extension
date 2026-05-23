@@ -37,7 +37,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received URL:", p.URL)
 
 	// Command to open a new visible terminal and run your script
-	cmd := exec.Command("cmd", "/c", "start", "cmd", "/k", "d:\\ytd\\ytd.exe", p.URL)
+	cmd := exec.Command("konsole", "-e", "/home/vampdued/vamp-ytd-extension/ytd", p.URL)
 	
 	if err := cmd.Start(); err != nil {
 		fmt.Println("Error starting script:", err)
