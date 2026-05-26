@@ -10,7 +10,9 @@ import (
 )
 
 type Payload struct {
-	URL string `json:"url"`
+	URL     string `json:"url"`
+	Mode    string `json:"mode"`
+	Cookies bool   `json:"cookies"`
 }
 
 func handleDownload(w http.ResponseWriter, r *http.Request) {
@@ -36,7 +38,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Println("Received URL:", p.URL)
+	fmt.Printf("Received Download request (URL: %s, Mode: %s, Cookies: %v)\n", p.URL, p.Mode, p.Cookies)
 
 	// Command to open a new visible terminal and run your script
 	ytdPath := "ytd"
@@ -48,10 +50,28 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	cmd := exec.Command("konsole", "-e", ytdPath, p.URL)
+	var ytdArgs []string
+	if p.Cookies {
+		ytdArgs = append(ytdArgs, "-c")
+	}
+
+	switch p.Mode {
+	case "quick-max":
+		ytdArgs = append(ytdArgs, "-q")
+	case "quick-1080p":
+		ytdArgs = append(ytdArgs, "-q", "1080p")
+	case "quick-4k":
+		ytdArgs = append(ytdArgs, "-q", "4k")
+	}
+
+	ytdArgs = append(ytdArgs, p.URL)
+
+	// Assemble final terminal launch command
+	cmdArgs := append([]string{"-e", ytdPath}, ytdArgs...)
+	cmd := exec.Command("konsole", cmdArgs...)
 	
 	if err := cmd.Start(); err != nil {
-		fmt.Println("Error starting script:", err)
+		fmt.Println("Error starting script inside terminal:", err)
 	}
 
 	w.WriteHeader(http.StatusOK)

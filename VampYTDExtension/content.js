@@ -30,56 +30,64 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
 
 // --- 1. Video Watch Page Button ---
 function injectWatchPageButton() {
-    if (document.getElementById('vampytd-watch-btn')) return;
-
     // Locate the right-side actions container (Share, Thanks, etc.)
     const menuContainer = document.querySelector('ytd-watch-metadata #top-level-buttons-computed') || 
                           document.querySelector('ytd-menu-renderer #top-level-buttons-computed');
 
-    if (menuContainer) {
-        const btn = document.createElement('button');
-        btn.id = 'vampytd-watch-btn';
-        
-        const originalContent = `${downloadIconSvg} <span style="margin-left: 8px; font-weight: 500;">VampYTD</span>`;
-        btn.innerHTML = originalContent;
-        
-        // Use YouTube's native CSS variables and styling
-        btn.style.cssText = `
-            background-color: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
-            color: var(--yt-spec-text-primary);
-            border: none;
-            padding: 0 16px;
-            height: 36px;
-            border-radius: 18px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            margin-right: 8px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            font-family: "Roboto", "Arial", sans-serif;
-            transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
-            box-sizing: border-box;
-            white-space: nowrap;
-        `;
+    if (!menuContainer) return;
 
-        btn.onmouseover = () => {
-            btn.style.backgroundColor = 'var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1))';
-        };
-        btn.onmouseout = () => {
-            btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05))';
-        };
-        btn.onmousedown = () => { btn.style.transform = 'scale(0.95)'; };
-        btn.onmouseup = () => { btn.style.transform = 'scale(1)'; };
+    // Fix for YouTube SPA navigation: check if the button is already inside this ACTIVE container
+    if (menuContainer.querySelector('#vampytd-watch-btn')) return;
 
-        btn.addEventListener('click', () => {
-            triggerDownload(window.location.href, btn, originalContent, false);
-        });
+    // Clean up any orphaned watch buttons that may be detached from previous pages
+    document.querySelectorAll('#vampytd-watch-btn').forEach(orphan => {
+        if (!menuContainer.contains(orphan)) {
+            orphan.remove();
+        }
+    });
 
-        // Insert exactly at the start of the action buttons (before Like)
-        menuContainer.insertBefore(btn, menuContainer.firstChild);
-    }
+    const btn = document.createElement('button');
+    btn.id = 'vampytd-watch-btn';
+    
+    const originalContent = `${downloadIconSvg} <span style="margin-left: 8px; font-weight: 500;">VampYTD</span>`;
+    btn.innerHTML = originalContent;
+    
+    // Use YouTube's native CSS variables and styling
+    btn.style.cssText = `
+        background-color: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
+        color: var(--yt-spec-text-primary);
+        border: none;
+        padding: 0 16px;
+        height: 36px;
+        border-radius: 18px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-right: 8px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Roboto", "Arial", sans-serif;
+        transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
+        box-sizing: border-box;
+        white-space: nowrap;
+    `;
+
+    btn.onmouseover = () => {
+        btn.style.backgroundColor = 'var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1))';
+    };
+    btn.onmouseout = () => {
+        btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05))';
+    };
+    btn.onmousedown = () => { btn.style.transform = 'scale(0.95)'; };
+    btn.onmouseup = () => { btn.style.transform = 'scale(1)'; };
+
+    btn.addEventListener('click', () => {
+        triggerDownload(window.location.href, btn, originalContent, false);
+    });
+
+    // Insert exactly at the start of the action buttons (before Like)
+    menuContainer.insertBefore(btn, menuContainer.firstChild);
 }
 
 // --- Dynamic Page Observer ---
@@ -93,3 +101,10 @@ const observer = new MutationObserver(() => {
 
 // Start the observer
 observer.observe(document.body, { childList: true, subtree: true });
+
+// Listen directly to YouTube's SPA navigation complete event
+window.addEventListener('yt-navigate-finish', () => {
+    if (window.location.pathname === '/watch') {
+        injectWatchPageButton();
+    }
+});
