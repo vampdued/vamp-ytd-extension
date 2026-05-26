@@ -61,7 +61,7 @@ To configure the browser companion bridge to start automatically on user login a
 
 ```bash
 # Run the automated systemd installer built directly into the bridge executable
-bridge --install   # or bridge -i
+./bridge --install   # or ./bridge -i
 ```
 
 This auto-generates your systemd user configuration (`~/.config/systemd/user/vampytd-bridge.service`), reloads the user systemd daemon, enables it on boot, and starts it instantly!
@@ -96,10 +96,10 @@ Starts a lightweight background HTTP server listening on port `8080` to bridge b
 
 ```bash
 # 1. Register and enable the systemd daemon (recommended)
-bridge --install    # or bridge -i
+./bridge --install    # or ./bridge -i
 
 # 2. Start the bridge manually in the current terminal window
-bridge
+./bridge
 ```
 
 ---

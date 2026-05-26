@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 )
 
 type Payload struct {
@@ -45,7 +47,11 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	ytdPath := "ytd"
 	if execPath, err := os.Executable(); err == nil {
 		execDir := filepath.Dir(execPath)
-		resolvedPath := filepath.Join(execDir, "ytd")
+		binaryName := "ytd"
+		if runtime.GOOS == "windows" {
+			binaryName = "ytd.exe"
+		}
+		resolvedPath := filepath.Join(execDir, binaryName)
 		if _, err := os.Stat(resolvedPath); err == nil {
 			ytdPath = resolvedPath
 		}
@@ -86,16 +92,71 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	ytdArgs = append(ytdArgs, p.URL)
 
-	// Assemble final terminal launch command
-	cmdArgs := append([]string{"-e", ytdPath}, ytdArgs...)
-	fmt.Printf("Launching terminal: konsole %v\n", cmdArgs)
-	cmd := exec.Command("konsole", cmdArgs...)
-	
-	if err := cmd.Start(); err != nil {
+	if err := launchTerminal(ytdPath, ytdArgs); err != nil {
 		fmt.Println("Error starting script inside terminal:", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func escapeWindowsArgs(args []string) []string {
+	escaped := make([]string, len(args))
+	for i, arg := range args {
+		// Escape double quotes and enclose arg in quotes if it has spaces or special chars
+		if strings.ContainsAny(arg, " &()[]{}^=;!'+,`~") {
+			escaped[i] = `"` + strings.ReplaceAll(arg, `"`, `""`) + `"`
+		} else {
+			escaped[i] = arg
+		}
+	}
+	return escaped
+}
+
+func launchTerminal(ytdPath string, ytdArgs []string) error {
+	if runtime.GOOS == "windows" {
+		// On Windows, use cmd.exe to launch ytd in a new visible Command Prompt window
+		// cmd.exe /c start cmd.exe /k "ytdPath args..."
+		cmdStr := fmt.Sprintf(`start cmd.exe /k ""%s" %s"`, ytdPath, strings.Join(escapeWindowsArgs(ytdArgs), " "))
+		cmd := exec.Command("cmd.exe", "/c", cmdStr)
+		return cmd.Start()
+	}
+
+	// On Linux/macOS, scan for terminal emulators
+	terminals := []string{"konsole", "gnome-terminal", "xfce4-terminal", "alacritty", "kitty", "xterm"}
+	var foundTerminal string
+	for _, term := range terminals {
+		if _, err := exec.LookPath(term); err == nil {
+			foundTerminal = term
+			break
+		}
+	}
+
+	if foundTerminal == "" {
+		// Fallback: spawn the raw process in the background without terminal wrapper
+		fmt.Println("No terminal emulator found. Spawning raw background process...")
+		args := append([]string{}, ytdArgs...)
+		cmd := exec.Command(ytdPath, args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Start()
+	}
+
+	var cmdArgs []string
+	switch foundTerminal {
+	case "gnome-terminal":
+		// gnome-terminal -- ytd args...
+		cmdArgs = append([]string{"--", ytdPath}, ytdArgs...)
+	case "kitty":
+		// kitty ytd args...
+		cmdArgs = append([]string{ytdPath}, ytdArgs...)
+	default:
+		// konsole, xfce4-terminal, alacritty, xterm all support -e <cmd> [args]
+		cmdArgs = append([]string{"-e", ytdPath}, ytdArgs...)
+	}
+
+	fmt.Printf("Launching terminal: %s %v\n", foundTerminal, cmdArgs)
+	cmd := exec.Command(foundTerminal, cmdArgs...)
+	return cmd.Start()
 }
 
 func handleRoot(w http.ResponseWriter, r *http.Request) {
