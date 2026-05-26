@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 type Payload struct {
@@ -37,7 +39,16 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received URL:", p.URL)
 
 	// Command to open a new visible terminal and run your script
-	cmd := exec.Command("konsole", "-e", "/home/vampdued/vamp-ytd-extension/ytd", p.URL)
+	ytdPath := "ytd"
+	if execPath, err := os.Executable(); err == nil {
+		execDir := filepath.Dir(execPath)
+		resolvedPath := filepath.Join(execDir, "ytd")
+		if _, err := os.Stat(resolvedPath); err == nil {
+			ytdPath = resolvedPath
+		}
+	}
+
+	cmd := exec.Command("konsole", "-e", ytdPath, p.URL)
 	
 	if err := cmd.Start(); err != nil {
 		fmt.Println("Error starting script:", err)

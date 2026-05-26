@@ -20,12 +20,15 @@ import (
 // CONFIG
 // ==============================================================================
 
+var (
+	cookiesYT   string
+	cookiesJHS  string
+	downloadDir string
+)
+
 const (
-	cookiesYT   = "/home/vampdued/.config/vampytd/cookies-yt.txt"
-	cookiesJHS  = "/home/vampdued/.config/vampytd/cookies-jhs.txt"
-	downloadDir = "/home/vampdued/Downloads/VampYTD"
-	ytdlp       = "yt-dlp"
-	ffmpeg      = "ffmpeg"
+	ytdlp  = "yt-dlp"
+	ffmpeg = "ffmpeg"
 )
 
 var (
@@ -671,6 +674,17 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 // ==============================================================================
 
 func main() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		home = os.Getenv("HOME")
+		if home == "" {
+			home = "."
+		}
+	}
+	cookiesYT = filepath.Join(home, ".config", "vampytd", "cookies-yt.txt")
+	cookiesJHS = filepath.Join(home, ".config", "vampytd", "cookies-jhs.txt")
+	downloadDir = filepath.Join(home, "Downloads", "VampYTD")
+
 	quickMode, quickOptions, trimMode, useCookies, startTime, endTime, url := parseArgs()
 
 	if strings.TrimSpace(url) == "" {

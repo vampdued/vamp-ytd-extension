@@ -1,21 +1,32 @@
+# Compiled Go binaries
+ytd
+bridge
+*.exe
+*.exe~
+ytdn.exe
+
 # Node
 node_modules/
 
-# Build
+# Build and Packaging
 dist/
 build/
 out/
 
 # Logs
 *.log
+ytd-error.log
 
-# Environment
+# Environment & Config
 .env
+.config/
 
-# IDE
+# IDE & Editor files
 .vscode/
 .idea/
+*.swp
+*~
 
-# OS
+# OS-specific
 Thumbs.db
 .DS_Store
