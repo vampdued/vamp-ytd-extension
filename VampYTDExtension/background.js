@@ -2,11 +2,13 @@
 function sendToBridge(url) {
     chrome.storage.local.get({
         downloadMode: 'interactive',
+        preferredCodec: 'auto',
         enableCookies: false
     }, (items) => {
         const payload = {
             url: url,
             mode: items.downloadMode,
+            codec: items.preferredCodec,
             cookies: items.enableCookies
         };
 

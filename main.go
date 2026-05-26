@@ -84,6 +84,29 @@ func prompt(label string) string {
 }
 
 // ==============================================================================
+// CODEC MATCHING DICTIONARY
+// ==============================================================================
+
+func matchesCodec(vcodec, reqCodec string) bool {
+	v := strings.ToLower(vcodec)
+	req := strings.ToLower(reqCodec)
+
+	switch req {
+	case "av1", "av01":
+		return strings.Contains(v, "av1") || strings.Contains(v, "av01")
+	case "vp9", "vp09":
+		return strings.Contains(v, "vp9") || strings.Contains(v, "vp09")
+	case "hevc", "h265", "h.265":
+		return strings.Contains(v, "hevc") || strings.Contains(v, "h265") || strings.Contains(v, "h.265")
+	case "h264", "h.264", "avc", "avc1":
+		return strings.Contains(v, "h264") || strings.Contains(v, "h.264") || strings.Contains(v, "avc")
+	default:
+		// Fallback to fuzzy substring match
+		return strings.Contains(v, req)
+	}
+}
+
+// ==============================================================================
 // ARGUMENT PARSING
 // ==============================================================================
 
@@ -792,14 +815,37 @@ func main() {
 				}
 
 				if reqCodec != "" {
-					if !strings.Contains(strings.ToLower(f.Raw.VCodec), reqCodec) {
+					if !matchesCodec(f.Raw.VCodec, reqCodec) {
 						continue
 					}
 				}
 
-				matchingVideo = f
-				foundVideo = true
-				break
+				// If we haven't found any matching video yet, default to this one
+				if !foundVideo {
+					matchingVideo = f
+					foundVideo = true
+					continue
+				}
+
+				// Compare resolution and bitrate (effective size) to find the absolute best quality
+				currH := 0
+				if matchingVideo.Raw.Height != nil {
+					currH = *matchingVideo.Raw.Height
+				}
+				newH := 0
+				if f.Raw.Height != nil {
+					newH = *f.Raw.Height
+				}
+
+				if newH > currH {
+					// 1. Prefer higher resolution
+					matchingVideo = f
+				} else if newH == currH {
+					// 2. For same resolution, choose the LARGEST bitrate / filesize
+					if f.EffectiveSize > matchingVideo.EffectiveSize {
+						matchingVideo = f
+					}
+				}
 			}
 
 			if !foundVideo {

@@ -12,6 +12,7 @@ import (
 type Payload struct {
 	URL     string `json:"url"`
 	Mode    string `json:"mode"`
+	Codec   string `json:"codec"`
 	Cookies bool   `json:"cookies"`
 }
 
@@ -38,7 +39,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("Received Download request (URL: %s, Mode: %s, Cookies: %v)\n", p.URL, p.Mode, p.Cookies)
+	fmt.Printf("Received Download request (URL: %s, Mode: %s, Codec: %s, Cookies: %v)\n", p.URL, p.Mode, p.Codec, p.Cookies)
 
 	// Command to open a new visible terminal and run your script
 	ytdPath := "ytd"
@@ -55,13 +56,32 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 		ytdArgs = append(ytdArgs, "-c")
 	}
 
+	var quickOpt string
 	switch p.Mode {
 	case "quick-max":
-		ytdArgs = append(ytdArgs, "-q")
+		if p.Codec != "" && p.Codec != "auto" {
+			quickOpt = p.Codec
+		}
 	case "quick-1080p":
-		ytdArgs = append(ytdArgs, "-q", "1080p")
+		if p.Codec != "" && p.Codec != "auto" {
+			quickOpt = "1080p," + p.Codec
+		} else {
+			quickOpt = "1080p"
+		}
 	case "quick-4k":
-		ytdArgs = append(ytdArgs, "-q", "4k")
+		if p.Codec != "" && p.Codec != "auto" {
+			quickOpt = "4k," + p.Codec
+		} else {
+			quickOpt = "4k"
+		}
+	}
+
+	if p.Mode != "interactive" && p.Mode != "" {
+		if quickOpt != "" {
+			ytdArgs = append(ytdArgs, "-q", quickOpt)
+		} else {
+			ytdArgs = append(ytdArgs, "-q")
+		}
 	}
 
 	ytdArgs = append(ytdArgs, p.URL)
