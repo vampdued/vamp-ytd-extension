@@ -68,6 +68,7 @@ func handleDownload(w http.ResponseWriter, r *http.Request) {
 
 	// Assemble final terminal launch command
 	cmdArgs := append([]string{"-e", ytdPath}, ytdArgs...)
+	fmt.Printf("Launching terminal: konsole %v\n", cmdArgs)
 	cmd := exec.Command("konsole", cmdArgs...)
 	
 	if err := cmd.Start(); err != nil {
