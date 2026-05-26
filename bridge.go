@@ -103,7 +103,84 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("VampYTD Bridge is running correctly! You can close this page."))
 }
 
+func installService() {
+	execPath, err := os.Executable()
+	if err != nil {
+		fmt.Printf("Error resolving executable path: %v\n", err)
+		return
+	}
+	execPath, err = filepath.Abs(execPath)
+	if err != nil {
+		fmt.Printf("Error resolving absolute path: %v\n", err)
+		return
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		fmt.Printf("Error resolving user home directory: %v\n", err)
+		return
+	}
+
+	systemdDir := filepath.Join(home, ".config", "systemd", "user")
+	if err := os.MkdirAll(systemdDir, 0755); err != nil {
+		fmt.Printf("Error creating systemd directories: %v\n", err)
+		return
+	}
+
+	servicePath := filepath.Join(systemdDir, "vampytd-bridge.service")
+	serviceContent := fmt.Sprintf(`[Unit]
+Description=VampYTD Bridge Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=%s
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=default.target
+`, execPath)
+
+	err = os.WriteFile(servicePath, []byte(serviceContent), 0644)
+	if err != nil {
+		fmt.Printf("Error writing systemd service file: %v\n", err)
+		return
+	}
+	fmt.Printf("Successfully auto-generated service file at: %s\n", servicePath)
+
+	fmt.Println("Registering and starting service with systemctl --user...")
+
+	// 1. systemctl --user daemon-reload
+	cmdReload := exec.Command("systemctl", "--user", "daemon-reload")
+	if err := cmdReload.Run(); err != nil {
+		fmt.Printf("Error reloading systemd user daemon: %v\n", err)
+		return
+	}
+
+	// 2. systemctl --user enable vampytd-bridge.service
+	cmdEnable := exec.Command("systemctl", "--user", "enable", "vampytd-bridge.service")
+	if err := cmdEnable.Run(); err != nil {
+		fmt.Printf("Error enabling vampytd-bridge service: %v\n", err)
+		return
+	}
+
+	// 3. systemctl --user restart vampytd-bridge.service
+	cmdRestart := exec.Command("systemctl", "--user", "restart", "vampytd-bridge.service")
+	if err := cmdRestart.Run(); err != nil {
+		fmt.Printf("Error restarting/starting vampytd-bridge service: %v\n", err)
+		return
+	}
+
+	fmt.Println("VampYTD Bridge user service is now successfully active, enabled and running on login!")
+}
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--install" || os.Args[1] == "-i") {
+		installService()
+		return
+	}
+
 	http.HandleFunc("/", handleRoot)
 	http.HandleFunc("/download", handleDownload)
 	fmt.Println("VampYTD Bridge listening on http://localhost:8080")
