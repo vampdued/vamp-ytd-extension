@@ -9,12 +9,13 @@ A high-performance, developer-centric CLI video downloader and browser bridge fo
 
 ## 🚀 Key Features
 
-* **🧠 Smart Format Sorting**: Automatically parses metadata and ranks formats based on **Resolution** → **Codec Efficiency** (AV1 > VP9 > HEVC > AVC) → **Audio Quality** → **Bitrate/File Size**.
+* **🧠 Smart Format Sorting & Quality Optimization**: Parses metadata and ranks formats based on **Resolution** → **Codec Efficiency** (AV1 > VP9 > HEVC > AVC) → **Audio Quality** → **Largest Bitrate/Filesize**. In quick modes, it dynamically compares resolution and bitrate to select the absolute highest quality track.
 * **⌨️ Interactive Keyboard Picker**: Leverages `fzf` for smooth, lightning-fast multi-select stream picker directly in your terminal.
 * **📦 Automatic Merging & Tagging**: Uses `ffmpeg` to merge high-quality video and audio into clean `.mkv` files, fully embedding chapters, thumbnails (converted to `.png`), and complete video metadata.
-* **⚡ Quick Mode**: Instant, hands-off downloads for best quality or specific resolution thresholds (e.g., `ytd -q 1080p "URL"`).
+* **⚡ Quick Mode & Codec Mapping**: Instant, hands-off downloads for best quality, specific resolutions, or preferred video codecs (AV1/VP9/H264) using fuzzy mappings (e.g. `av1` -> `av01.*`, `hevc`/`h265` -> `h265`, `h264` -> `avc1.*`).
 * **✂️ Trim Mode**: High-speed lossless section trimming via stream copying (e.g., `ytd -t 01:20 02:45 "URL"`).
-* **🌐 Browser Integration**: One-click downloads directly from YouTube using the native Chrome/Edge manifest-v3 extension, connecting to a lightweight background daemon server.
+* **🌐 Double-Layer SPA Extension**: Modern manifest-v3 chrome extension for one-click downloading featuring a slate-minimal popup panel and robust YouTube Single Page Application injection (MutationObserver + `yt-navigate-finish` triggers).
+* **🛡️ Self-Generating Systemd Service**: Complete daemon automation via `./bridge --install` flag which auto-generates, registers, enables, and launches a systemd user service.
 
 ---
 
@@ -46,7 +47,7 @@ go build -o ytd main.go
 go build -o bridge bridge.go
 ```
 
-### 2. Linux/macOS Installation
+### 2. Linux/macOS Installation & systemd Service Setup
 
 Make the compiled binaries executable and symlink them to your local user binary directory:
 
@@ -56,11 +57,14 @@ ln -sf $(pwd)/ytd ~/.local/bin/ytd
 ln -sf $(pwd)/bridge ~/.local/bin/bridge
 ```
 
-Ensure `~/.local/bin` is in your environment shell's `$PATH`.
+To configure the browser companion bridge to start automatically on user login and run silently in the background:
 
-### 3. Windows Installation
+```bash
+# Run the automated systemd installer built directly into the bridge executable
+bridge --install   # or bridge -i
+```
 
-Use the compiled `ytd.exe`/`bridge.exe` or execute standard CLI commands through the included `ytd.ps1` PowerShell script.
+This auto-generates your systemd user configuration (`~/.config/systemd/user/vampytd-bridge.service`), reloads the user systemd daemon, enables it on boot, and starts it instantly!
 
 ---
 
@@ -91,7 +95,10 @@ ytd -c "URL"
 Starts a lightweight background HTTP server listening on port `8080` to bridge browser events to your terminal downloader.
 
 ```bash
-# Start the bridge daemon
+# 1. Register and enable the systemd daemon (recommended)
+bridge --install    # or bridge -i
+
+# 2. Start the bridge manually in the current terminal window
 bridge
 ```
 
@@ -118,8 +125,8 @@ VampYTD comes with a modern manifest-v3 chrome extension for one-click downloadi
 2. Toggle **Developer mode** in the upper right.
 3. Click **Load unpacked** in the top-left corner.
 4. Select the `VampYTDExtension` directory within this repository.
-5. Make sure the local `bridge` server is running in the background (`bridge`).
-6. Click the extension button or the injected native button on YouTube to immediately trigger high-speed CLI downloads!
+5. Click the extension toolbar icon to view the dynamic slate-minimal console. You can toggle **Download Mode**, **Preferred Codec (AV1/VP9/H264)**, **Cookies**, and verify the live connection indicator dot (green when bridge is online, amber when bridge is offline).
+6. Click the watch page download button on YouTube to immediately trigger high-speed optimized CLI downloads!
 
 ---
 
