@@ -112,6 +112,28 @@ func escapeWindowsArgs(args []string) []string {
 	return escaped
 }
 
+// displayEnv returns the display-related environment variables needed for GUI
+// apps. When the bridge runs as a systemd service its environment is minimal
+// (no DISPLAY / WAYLAND_DISPLAY), so we must forward these explicitly to any
+// child process that opens a window, otherwise Qt calls abort() at startup.
+func displayEnv() []string {
+	keys := []string{
+		"DISPLAY",
+		"WAYLAND_DISPLAY",
+		"XDG_RUNTIME_DIR",
+		"DBUS_SESSION_BUS_ADDRESS",
+		"XDG_SESSION_TYPE",
+		"XDG_CURRENT_DESKTOP",
+	}
+	var env []string
+	for _, k := range keys {
+		if v := os.Getenv(k); v != "" {
+			env = append(env, k+"="+v)
+		}
+	}
+	return env
+}
+
 func launchTerminal(ytdPath string, ytdArgs []string) error {
 	if runtime.GOOS == "windows" {
 		// On Windows, use cmd.exe to launch ytd in a new visible Command Prompt window
@@ -156,6 +178,10 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 
 	fmt.Printf("Launching terminal: %s %v\n", foundTerminal, cmdArgs)
 	cmd := exec.Command(foundTerminal, cmdArgs...)
+	// Inherit the current environment and overlay display vars. This ensures
+	// GUI terminals can connect to the display even when the bridge was started
+	// by systemd (which strips session-specific env vars like DISPLAY).
+	cmd.Env = append(os.Environ(), displayEnv()...)
 	return cmd.Start()
 }
 
@@ -189,6 +215,29 @@ func installService() {
 	}
 
 	servicePath := filepath.Join(systemdDir, "vampytd-bridge.service")
+
+	// Capture current display session vars at install time so the service
+	// can spawn GUI apps (e.g. konsole) that require a display connection.
+	// Without these, Qt/X11/Wayland will abort with SIGABRT at init_platform().
+	display := os.Getenv("DISPLAY")
+	waylandDisplay := os.Getenv("WAYLAND_DISPLAY")
+	xdgRuntime := os.Getenv("XDG_RUNTIME_DIR")
+	dbusAddr := os.Getenv("DBUS_SESSION_BUS_ADDRESS")
+
+	envLine := ""
+	if display != "" {
+		envLine += fmt.Sprintf("Environment=DISPLAY=%s\n", display)
+	}
+	if waylandDisplay != "" {
+		envLine += fmt.Sprintf("Environment=WAYLAND_DISPLAY=%s\n", waylandDisplay)
+	}
+	if xdgRuntime != "" {
+		envLine += fmt.Sprintf("Environment=XDG_RUNTIME_DIR=%s\n", xdgRuntime)
+	}
+	if dbusAddr != "" {
+		envLine += fmt.Sprintf("Environment=DBUS_SESSION_BUS_ADDRESS=%s\n", dbusAddr)
+	}
+
 	serviceContent := fmt.Sprintf(`[Unit]
 Description=VampYTD Bridge Server
 After=network.target
@@ -196,12 +245,12 @@ After=network.target
 [Service]
 Type=simple
 ExecStart=%s
-Restart=always
+%sRestart=always
 RestartSec=3
 
 [Install]
 WantedBy=default.target
-`, execPath)
+`, execPath, envLine)
 
 	err = os.WriteFile(servicePath, []byte(serviceContent), 0644)
 	if err != nil {
