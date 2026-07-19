@@ -78,6 +78,14 @@ Pop-Location
 
 # 3. Sync Binary and Assets
 Write-Host "`n[3/5] Syncing compiled files to runtime path..." -ForegroundColor Blue
+
+# Stop any running process first to ensure we can overwrite the binary files
+$Processes = Get-Process -Name "bridge" -ErrorAction SilentlyContinue
+if ($Processes) {
+    Write-Host "   - Terminating running bridge daemon instances..."
+    Stop-Process -Name "bridge" -Force
+}
+
 if (-not (Test-Path $RunDir)) {
     New-Item -ItemType Directory -Force -Path $RunDir | Out-Null
 }
@@ -124,12 +132,7 @@ if (Test-Path $StartupPath) {
     Remove-Item -Path $StartupPath -Force
 }
 
-# Stop any running process first to ensure fresh restart
-$Processes = Get-Process -Name "bridge" -ErrorAction SilentlyContinue
-if ($Processes) {
-    Write-Host "   - Terminating running instances..."
-    Stop-Process -Name "bridge" -Force
-}
+
 
 # Create hidden startup VBScript to run bridge detached and completely silent
 $VbsPath = "$RunDir\start_bridge_hidden.vbs"

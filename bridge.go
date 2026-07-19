@@ -136,10 +136,15 @@ func displayEnv() []string {
 
 func launchTerminal(ytdPath string, ytdArgs []string) error {
 	if runtime.GOOS == "windows" {
-		// On Windows, use cmd.exe to launch ytd in a new visible Command Prompt window
-		// cmd.exe /c start cmd.exe /k "ytdPath args..."
-		cmdStr := fmt.Sprintf(`start cmd.exe /k ""%s" %s"`, ytdPath, strings.Join(escapeWindowsArgs(ytdArgs), " "))
-		cmd := exec.Command("cmd.exe", "/c", cmdStr)
+		// On Windows, use the start command with a title and starting directory (/d).
+		// We launch "ytd.exe" from its operational directory.
+		// This handles paths with spaces gracefully and avoids cmd.exe quoting issues.
+		execDir := filepath.Dir(ytdPath)
+		binaryName := filepath.Base(ytdPath)
+
+		cmdArgs := []string{"/c", "start", "VampYTD Downloader", "/d", execDir, "cmd.exe", "/k", binaryName}
+		cmdArgs = append(cmdArgs, ytdArgs...)
+		cmd := exec.Command("cmd.exe", cmdArgs...)
 		return cmd.Start()
 	}
 
