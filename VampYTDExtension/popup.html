@@ -2,329 +2,269 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>VampYTD Settings</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VampYTD</title>
   <style>
     :root {
-      --bg-base: #0e0f11;
-      --bg-surface: #151619;
-      --bg-surface-hover: #1c1d22;
-      --border-color: #24262b;
-      --border-color-active: #3a3d45;
-      --text-primary: #f3f4f6;
-      --text-secondary: #9ca3af;
-      --text-muted: #6b7280;
-      
-      --color-success: #10b981;
-      --color-warning: #f59e0b;
-      --color-error: #ef4444;
-      
-      --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color-scheme: dark;
+      --bg: #0d0e11;
+      --surface: #15171b;
+      --surface-2: #1b1e24;
+      --border: #292c34;
+      --text: #f5f6f8;
+      --muted: #959ba8;
+      --success: #34d399;
+      --warning: #fbbf24;
+      --error: #fb7185;
+      --accent: #a78bfa;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; }
 
     body {
-      width: 320px;
-      background-color: var(--bg-base);
-      color: var(--text-primary);
-      font-family: var(--font-family);
-      font-size: 13px;
-      line-height: 1.5;
-      padding: 20px;
-      -webkit-font-smoothing: antialiased;
+      width: 360px;
+      max-height: 600px;
+      margin: 0;
+      overflow-y: auto;
+      background: var(--bg);
+      color: var(--text);
+      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    /* Header Section */
+    .shell { padding: 16px; }
+
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
-      padding-bottom: 12px;
-      border-bottom: 1px solid var(--border-color);
+      gap: 12px;
+      margin-bottom: 14px;
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand img { width: 32px; height: 32px; }
+    .brand-name { display: block; font-size: 16px; font-weight: 700; }
+    .brand-version { color: var(--muted); font-size: 11px; }
 
-    .brand-logo {
-      width: 20px;
-      height: 20px;
-      opacity: 0.95;
-    }
-
-    .brand-title {
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-    }
-
-    .status-badge {
-      display: flex;
+    .overall-status {
+      display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-secondary);
-      background-color: var(--bg-surface);
-      padding: 4px 8px;
-      border-radius: 12px;
-      border: 1px solid var(--border-color);
-    }
-
-    .status-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background-color: var(--text-muted);
-      transition: background-color 0.3s ease;
-    }
-
-    .status-dot.online {
-      background-color: var(--color-success);
-    }
-
-    .status-dot.offline {
-      background-color: var(--color-warning);
-    }
-
-    /* Section Styling */
-    .section-title {
+      padding: 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
       font-size: 11px;
       font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 10px;
     }
+
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .overall-status.good .dot { background: var(--success); box-shadow: 0 0 8px #34d39966; }
+    .overall-status.warn .dot { background: var(--warning); }
+    .overall-status.bad .dot { background: var(--error); }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .tab {
+      border: 0;
+      border-radius: 7px;
+      padding: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+    }
+
+    .tab.active { background: var(--surface-2); color: var(--text); }
+    .panel[hidden] { display: none; }
 
     .card {
-      background-color: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      padding: 16px;
-      margin-bottom: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      margin-bottom: 12px;
     }
 
-    /* Segmented Selector */
-    .segment-container {
+    .card-title {
+      padding: 11px 12px 8px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .health-row {
       display: flex;
-      flex-direction: column;
-      gap: 4px;
-      background-color: var(--bg-base);
-      border: 1px solid var(--border-color);
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 40px;
+      padding: 9px 12px;
+      border-top: 1px solid var(--border);
+    }
+
+    .health-label { font-weight: 500; }
+    .health-value { color: var(--muted); font-size: 11px; text-align: right; }
+    .health-value.good { color: var(--success); }
+    .health-value.warn { color: var(--warning); }
+    .health-value.bad { color: var(--error); }
+
+    .folder {
+      display: block;
+      padding: 0 12px 12px;
+      color: var(--muted);
+      font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .test-button {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #6d5ea9;
+      border-radius: 9px;
+      background: #2a2340;
+      color: #eee9ff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 650;
+    }
+
+    .test-button:hover { background: #352b51; }
+    .test-button:disabled { cursor: wait; opacity: .65; }
+    .checked-time { margin: 7px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
+
+    .setting-card { padding: 12px; }
+    .setting-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+
+    .options { display: grid; gap: 5px; }
+    .option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 10px;
+      border: 1px solid transparent;
       border-radius: 8px;
-      padding: 4px;
-    }
-
-    .segment-option {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 12px;
-      border-radius: 6px;
+      color: var(--muted);
       cursor: pointer;
-      font-weight: 500;
-      color: var(--text-secondary);
-      transition: all 0.2s ease;
     }
 
-    .segment-option:hover {
-      background-color: var(--bg-surface-hover);
-      color: var(--text-primary);
-    }
+    .option:hover { background: var(--surface-2); color: var(--text); }
+    .option.active { border-color: #514474; background: #282238; color: var(--text); }
+    .option-meta { font-size: 10px; color: var(--muted); }
 
-    .segment-option.active {
-      background-color: var(--border-color);
-      color: var(--text-primary);
-    }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .setting-description { color: var(--muted); font-size: 11px; }
+    .switch { position: relative; width: 38px; height: 22px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; }
+    .slider::before { content: ""; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: #a5aab4; transition: .18s; }
+    .switch input:checked + .slider { background: #66538e; }
+    .switch input:checked + .slider::before { transform: translateX(16px); background: white; }
 
-    .segment-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    /* Settings list toggles */
-    .setting-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .setting-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .setting-label {
-      font-weight: 500;
-      color: var(--text-primary);
-    }
-
-    .setting-desc {
-      font-size: 11px;
-      color: var(--text-secondary);
-    }
-
-    /* Modern Minimalist Toggle Switch */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 36px;
-      height: 20px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: var(--bg-base);
-      border: 1px solid var(--border-color);
-      transition: .2s ease;
-      border-radius: 20px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 12px;
-      width: 12px;
-      left: 3px;
-      bottom: 3px;
-      background-color: var(--text-secondary);
-      transition: .2s ease;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: var(--border-color-active);
-      border-color: var(--border-color-active);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(16px);
-      background-color: var(--text-primary);
-    }
-
-    /* Diagnostics Footer */
-    footer {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    .footer-link {
-      color: var(--text-secondary);
-      text-decoration: none;
-      transition: color 0.2s ease;
-    }
-
-    .footer-link:hover {
-      color: var(--text-primary);
-    }
+    footer { margin-top: 12px; color: var(--muted); font-size: 10px; text-align: center; }
   </style>
 </head>
 <body>
-
-  <header>
-    <div class="brand">
-      <img src="icons/icon32.png" alt="Logo" class="brand-logo">
-      <span class="brand-title">VampYTD</span>
-    </div>
-    <div class="status-badge">
-      <span class="status-dot" id="status-dot"></span>
-      <span id="status-text">Checking</span>
-    </div>
-  </header>
-
-  <main>
-    <div class="section-title">Download Mode</div>
-    <div class="card" style="padding: 10px;">
-      <div class="segment-container" id="mode-selector">
-        <div class="segment-option" data-mode="interactive">
-          <span>Interactive</span>
-          <span class="segment-meta">FZF Menu</span>
-        </div>
-        <div class="segment-option" data-mode="quick-max">
-          <span>Quick Max</span>
-          <span class="segment-meta">Best Quality</span>
-        </div>
-        <div class="segment-option" data-mode="quick-1080p">
-          <span>Quick 1080p</span>
-          <span class="segment-meta">FHD Max</span>
-        </div>
-        <div class="segment-option" data-mode="quick-4k">
-          <span>Quick 4K</span>
-          <span class="segment-meta">UHD Max</span>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <img src="icons/icon32.png" alt="">
+        <div>
+          <span class="brand-name">VampYTD</span>
+          <span class="brand-version" id="version-text"></span>
         </div>
       </div>
-    </div>
-    
-    <div class="section-title">Preferred Codec</div>
-    <div class="card" style="padding: 10px;">
-      <div class="segment-container" id="codec-selector">
-        <div class="segment-option" data-codec="auto">
-          <span>Auto</span>
-          <span class="segment-meta">Best Match</span>
-        </div>
-        <div class="segment-option" data-codec="av1">
-          <span>AV1</span>
-          <span class="segment-meta">High Efficiency</span>
-        </div>
-        <div class="segment-option" data-codec="vp9">
-          <span>VP9/HEVC</span>
-          <span class="segment-meta">Balanced</span>
-        </div>
-        <div class="segment-option" data-codec="h264">
-          <span>H264</span>
-          <span class="segment-meta">Compatibility</span>
-        </div>
+      <div class="overall-status" id="overall-status">
+        <span class="dot"></span>
+        <span id="overall-text">Checking</span>
       </div>
-    </div>
+    </header>
 
-    <div class="section-title">System Settings</div>
-    <div class="card">
-      <div class="setting-row">
-        <div class="setting-info">
-          <span class="setting-label">Load Cookies</span>
-          <span class="setting-desc">Auto-include cookie database</span>
+    <nav class="tabs" aria-label="Popup sections">
+      <button class="tab active" type="button" data-panel="status-panel">Status</button>
+      <button class="tab" type="button" data-panel="settings-panel">Settings</button>
+    </nav>
+
+    <main>
+      <section class="panel" id="status-panel">
+        <div class="card">
+          <div class="card-title">Connection</div>
+          <div class="health-row">
+            <span class="health-label">Native bridge</span>
+            <span class="health-value" id="native-status">Checking…</span>
+          </div>
+          <div class="health-row">
+            <span class="health-label">Local fallback</span>
+            <span class="health-value" id="http-status">Checking…</span>
+          </div>
         </div>
-        <label class="switch">
-          <input type="checkbox" id="cookies-toggle">
-          <span class="slider"></span>
-        </label>
-      </div>
-    </div>
-  </main>
 
-  <footer>
-    <span>v1.1 Premium</span>
-    <span>Connected to Localhost</span>
-  </footer>
+        <div class="card">
+          <div class="card-title">Required tools</div>
+          <div class="health-row"><span class="health-label">VampYTD downloader</span><span class="health-value" id="downloader-status">Checking…</span></div>
+          <div class="health-row"><span class="health-label">yt-dlp</span><span class="health-value" id="ytdlp-status">Checking…</span></div>
+          <div class="health-row"><span class="health-label">FFmpeg</span><span class="health-value" id="ffmpeg-status">Checking…</span></div>
+          <div class="health-row"><span class="health-label">Node.js</span><span class="health-value" id="node-status">Checking…</span></div>
+          <div class="health-row"><span class="health-label">FZF</span><span class="health-value" id="fzf-status">Optional</span></div>
+        </div>
 
+        <div class="card">
+          <div class="card-title">Download folder</div>
+          <span class="folder" id="download-folder">Checking…</span>
+        </div>
+
+        <button class="test-button" type="button" id="test-button">Test connection</button>
+        <div class="checked-time" id="checked-time" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" id="settings-panel" hidden>
+        <div class="card setting-card">
+          <h2 class="setting-title">Download mode</h2>
+          <div class="options" id="mode-selector">
+            <div class="option" data-mode="interactive"><span>Interactive</span><span class="option-meta">Format menu</span></div>
+            <div class="option" data-mode="quick-max"><span>Quick Max</span><span class="option-meta">Best quality</span></div>
+            <div class="option" data-mode="quick-1080p"><span>Quick 1080p</span><span class="option-meta">Full HD</span></div>
+            <div class="option" data-mode="quick-4k"><span>Quick 4K</span><span class="option-meta">Ultra HD</span></div>
+          </div>
+        </div>
+
+        <div class="card setting-card">
+          <h2 class="setting-title">Preferred codec</h2>
+          <div class="options" id="codec-selector">
+            <div class="option" data-codec="auto"><span>Auto</span><span class="option-meta">Best match</span></div>
+            <div class="option" data-codec="av1"><span>AV1</span><span class="option-meta">High efficiency</span></div>
+            <div class="option" data-codec="vp9"><span>VP9 / HEVC</span><span class="option-meta">Balanced</span></div>
+            <div class="option" data-codec="h264"><span>H264</span><span class="option-meta">Compatibility</span></div>
+          </div>
+        </div>
+
+        <div class="card setting-card toggle-row">
+          <div>
+            <div>Load cookies</div>
+            <div class="setting-description">Include the configured cookie file</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="cookies-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+    </main>
+
+    <footer>Native messaging is preferred; localhost is only a compatibility fallback.</footer>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

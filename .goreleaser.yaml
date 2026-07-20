@@ -1,0 +1,46 @@
+version: 2
+
+project_name: VampYTD
+
+before:
+  hooks:
+    - go test ./...
+
+builds:
+  - id: ytd
+    main: ./cmd/ytd
+    binary: ytd
+    env: [CGO_ENABLED=0]
+    goos: [windows]
+    goarch: [amd64, arm64]
+  - id: bridge
+    main: ./cmd/bridge
+    binary: bridge
+    env: [CGO_ENABLED=0]
+    goos: [windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: windows
+    ids: [ytd, bridge]
+    name_template: "VampYTD_{{ .Version }}_windows_{{ .Arch }}"
+    formats: [zip]
+    wrap_in_directory: true
+    files:
+      - README.md
+      - CHANGELOG.md
+      - Install-VampYTD.cmd
+      - Uninstall-VampYTD.cmd
+      - deploy.ps1
+      - uninstall.ps1
+      - VampYTDExtension/**/*
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
