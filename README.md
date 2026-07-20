@@ -111,4 +111,4 @@ spec.md             downloader behavior specification
 
 Windows AMD64 and ARM64 ZIP archives are created from semantic-version tags such as `v1.3.0`. The tag must match the extension version. Releases include SHA-256 checksums and GitHub artifact attestations.
 
-Before creating the first public release, add an explicit project license. Windows code signing is also recommended but is not yet configured.
+VampYTD is available under the [MIT License](LICENSE). Windows code signing is recommended but is not yet configured.

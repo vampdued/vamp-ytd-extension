@@ -8,6 +8,7 @@
 - Fixed Windows URL argument forwarding and YouTube page-button clicks.
 - Added automated Windows install/uninstall testing and cross-platform Go checks.
 - Added Windows AMD64 and ARM64 release archives, checksums, and attestations.
+- Licensed the project under the MIT License.
 
 ## 1.0.0
 

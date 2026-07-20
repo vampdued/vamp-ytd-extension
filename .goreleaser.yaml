@@ -29,6 +29,7 @@ archives:
     files:
       - README.md
       - CHANGELOG.md
+      - LICENSE
       - Install-VampYTD.cmd
       - Uninstall-VampYTD.cmd
       - deploy.ps1
