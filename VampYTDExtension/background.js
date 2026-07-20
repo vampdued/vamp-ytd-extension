@@ -1,33 +1,98 @@
-// --- Utility: Forward URL & Stored Settings to Bridge Daemon ---
-function sendToBridge(url) {
-    chrome.storage.local.get({
-        downloadMode: 'interactive',
-        preferredCodec: 'auto',
-        enableCookies: false
-    }, (items) => {
-        const payload = {
-            url: url,
-            mode: items.downloadMode,
-            codec: items.preferredCodec,
-            cookies: items.enableCookies
-        };
+const NATIVE_HOST = 'com.vampytd.bridge';
 
-        fetch('http://localhost:8080/download', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(response => {
-            if (response.ok) {
-                console.log("Successfully sent download command to bridge daemon:", payload);
-            } else {
-                console.error("Bridge daemon returned error status:", response.status);
+function sendNative(payload) {
+    return new Promise((resolve, reject) => {
+        chrome.runtime.sendNativeMessage(NATIVE_HOST, payload, (response) => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
             }
-        })
-        .catch(error => {
-            console.error("Connection failed. Ensure VampYTD Bridge is running:", error);
+            if (!response || !response.ok) {
+                reject(new Error(response?.error || 'Native host returned no response'));
+                return;
+            }
+            resolve(response);
+        });
+    });
+}
+
+async function sendHttpFallback(payload) {
+    const response = await fetch('http://localhost:8080/download', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+    });
+    if (!response.ok) {
+        throw new Error((await response.text()) || `Bridge returned status ${response.status}`);
+    }
+    return { ok: true, transport: 'http' };
+}
+
+async function getHttpDiagnostics() {
+    const response = await fetch('http://localhost:8080/diagnostics');
+    if (!response.ok) {
+        throw new Error(`Bridge returned status ${response.status}`);
+    }
+    return response.json();
+}
+
+async function getDiagnostics() {
+    const [nativeResult, httpResult] = await Promise.allSettled([
+        sendNative({ action: 'ping' }),
+        getHttpDiagnostics()
+    ]);
+
+    const nativeOK = nativeResult.status === 'fulfilled';
+    const httpOK = httpResult.status === 'fulfilled' && Boolean(httpResult.value?.ok);
+    const details = nativeOK ? nativeResult.value : (httpOK ? httpResult.value : null);
+
+    return {
+        ok: nativeOK || httpOK,
+        native: nativeOK
+            ? { ok: true }
+            : { ok: false, error: nativeResult.reason?.message || 'Unavailable' },
+        http: httpOK
+            ? { ok: true }
+            : { ok: false, error: httpResult.reason?.message || 'Unavailable' },
+        details
+    };
+}
+
+// Forward URL and stored settings to the native host. HTTP remains as a
+// migration fallback for existing installations.
+function sendToBridge(url) {
+    return new Promise((resolve) => {
+        chrome.storage.local.get({
+            downloadMode: 'interactive',
+            preferredCodec: 'auto',
+            enableCookies: false
+        }, (items) => {
+            const payload = {
+                url: url,
+                mode: items.downloadMode,
+                codec: items.preferredCodec,
+                cookies: items.enableCookies
+            };
+
+            sendNative(payload)
+                .then(() => {
+                    console.log('Download sent through native messaging:', payload);
+                    resolve({ ok: true, transport: 'native' });
+                })
+                .catch(nativeError => {
+                    console.warn('Native messaging unavailable; trying localhost bridge:', nativeError);
+                    sendHttpFallback(payload)
+                        .then(resolve)
+                        .catch(httpError => {
+                            console.error('Both VampYTD transports failed:', httpError);
+                            resolve({
+                                ok: false,
+                                error: `Native: ${nativeError.message}; HTTP: ${httpError.message}`
+                            });
+                        });
+                });
         });
     });
 }
@@ -74,7 +139,19 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
 // --- Injected Content Action Message Listener ---
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'diagnostics') {
+        getDiagnostics().then(sendResponse);
+        return true;
+    }
+    if (message.action === 'ping') {
+        getDiagnostics().then(result => sendResponse({
+            ok: result.ok,
+            transport: result.native.ok ? 'native' : (result.http.ok ? 'http' : undefined)
+        }));
+        return true;
+    }
     if (message.action === 'download' && message.url) {
-        sendToBridge(message.url);
+        sendToBridge(message.url).then(sendResponse);
+        return true;
     }
 });

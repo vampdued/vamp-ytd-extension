@@ -1,135 +1,114 @@
-# 🦇 VampYTD
+# VampYTD
 
-A high-performance, developer-centric CLI video downloader and browser bridge for YouTube and hotstar/jiohotstar. Built in Go, VampYTD seamlessly wraps `yt-dlp`, `ffmpeg`, and `fzf` to provide a keyboard-driven, lightning-fast downloading experience with intelligent automatic format selection, media merging, and metadata embedding.
+VampYTD is a Windows-first video downloader with a Chromium browser extension. It uses `yt-dlp` for extraction, FFmpeg for merging and trimming, and an optional FZF interface for choosing streams.
 
-> [!NOTE]
-> VampYTD has been completely updated to be fully portable across systems with dynamic directory resolution, eliminating any hardcoded user home path references.
+## Simple Windows installation
 
----
+1. Download the Windows ZIP from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
+2. Extract the complete ZIP.
+3. Double-click `Install-VampYTD.cmd`.
+4. On the browser extensions page, enable **Developer mode**, choose **Load unpacked**, and select the folder opened by setup.
 
-## 🚀 Key Features
+The installer:
 
-* **🧠 Smart Format Sorting & Quality Optimization**: Parses metadata and ranks formats based on **Resolution** → **Codec Efficiency** (AV1 > VP9 > HEVC > AVC) → **Audio Quality** → **Largest Bitrate/Filesize**. In quick modes, it dynamically compares resolution and bitrate to select the absolute highest quality track.
-* **⌨️ Interactive Keyboard Picker**: Leverages `fzf` for smooth, lightning-fast multi-select stream picker directly in your terminal.
-* **📦 Automatic Merging & Tagging**: Uses `ffmpeg` to merge high-quality video and audio into clean `.mkv` files, fully embedding chapters, thumbnails (converted to `.png`), and complete video metadata.
-* **⚡ Quick Mode & Codec Mapping**: Instant, hands-off downloads for best quality, specific resolutions, or preferred video codecs (AV1/VP9/H264) using fuzzy mappings (e.g. `av1` -> `av01.*`, `hevc`/`h265` -> `h265`, `h264` -> `avc1.*`).
-* **✂️ Trim Mode**: High-speed lossless section trimming via stream copying (e.g., `ytd -t 01:20 02:45 "URL"`).
-* **🌐 Double-Layer SPA Extension**: Modern manifest-v3 chrome extension for one-click downloading featuring a slate-minimal popup panel and robust YouTube Single Page Application injection (MutationObserver + `yt-navigate-finish` triggers).
-* **🛡️ Self-Generating Systemd Service**: Complete daemon automation via `./bridge --install` flag which auto-generates, registers, enables, and launches a systemd user service.
+- installs missing `yt-dlp`, FFmpeg, and Node.js packages through Windows Package Manager;
+- installs VampYTD under `%LOCALAPPDATA%\VampYTD`;
+- adds the command-line downloader to the user `PATH`;
+- registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
+- opens the installed extension folder and copies its path to the clipboard.
 
----
+Administrator access is not normally required. Run the installer again at any time to repair or update the installation.
 
-## 🛠️ Prerequisites
+To remove VampYTD, first remove the unpacked browser extension and then double-click `Uninstall-VampYTD.cmd`.
 
-Ensure you have the following CLI tools installed and available in your system `PATH`:
+> Windows releases are currently unsigned. Windows may display a security warning until code signing is configured.
 
-| Tool | Recommended Install Command (macOS/Linux) | Recommended Install Command (Windows/Scoop) |
-| :--- | :--- | :--- |
-| **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** | `brew install yt-dlp` or `sudo apt install yt-dlp` | `scoop install yt-dlp` |
-| **[ffmpeg](https://ffmpeg.org/)** | `brew install ffmpeg` or `sudo apt install ffmpeg` | `scoop install ffmpeg` |
-| **[fzf](https://github.com/junegunn/fzf)** | `brew install fzf` or `sudo apt install fzf` | `scoop install fzf` |
+## Requirements
 
----
+The double-click installer handles the required tools automatically when Windows Package Manager is available.
 
-## 📦 Building & Installation
+| Tool | Required | Purpose |
+| --- | --- | --- |
+| `yt-dlp` | Yes | Video extraction and download |
+| FFmpeg | Yes | Merging, thumbnails, and trimming |
+| Node.js | Yes | JavaScript runtime used by `yt-dlp` |
+| FZF | No | Enhanced interactive format picker |
 
-VampYTD is written in clean, modern Go. You can build it locally from the source files.
+Keep `yt-dlp` current because video-site extractors change frequently.
 
-### 1. Build the Binaries
+## Browser extension
 
-From the repository root, build the optimized Go executables:
+The extension offers:
 
-```bash
-# Build the CLI downloader
-go build -o ytd main.go
+- a right-click download menu;
+- a VampYTD button on YouTube video pages;
+- download mode, codec, and cookie settings;
+- a diagnostic dashboard for native messaging, the optional localhost fallback, dependencies, and download location.
 
-# Build the browser companion bridge
-go build -o bridge bridge.go
-```
+Chromium native messaging starts the bridge only when required. New installations do not need a permanent background process, startup shortcut, scheduled task, or listening network port. A secured localhost mode remains available only as a compatibility fallback for older installations.
 
-### 2. Linux/macOS Installation & systemd Service Setup
+The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd`, and native-host manifests authorize that exact origin.
 
-Make the compiled binaries executable and symlink them to your local user binary directory:
+## Command-line usage
 
-```bash
-chmod +x ytd bridge
-ln -sf $(pwd)/ytd ~/.local/bin/ytd
-ln -sf $(pwd)/bridge ~/.local/bin/bridge
-```
-
-To configure the browser companion bridge to start automatically on user login and run silently in the background:
-
-```bash
-# Run the automated systemd installer built directly into the bridge executable
-./bridge --install   # or ./bridge -i
-```
-
-This auto-generates your systemd user configuration (`~/.config/systemd/user/vampytd-bridge.service`), reloads the user systemd daemon, enables it on boot, and starts it instantly!
-
----
-
-## 📖 CLI Usage Guides
-
-### `ytd` — The Core Downloader
-
-```bash
-# 1. Interactive Selection Mode (launches fzf menu with custom styled streams)
+```powershell
+# Interactive format selection
 ytd "https://www.youtube.com/watch?v=..."
 
-# 2. Quick Mode (instantly download best resolution without manual selection)
+# Best available quality
 ytd -q "URL"
 
-# 3. Quick Mode with Resolution Constraints (limit maximum height)
+# Resolution and codec constraints
 ytd -q 1080p "URL"
 ytd -q 4k,av1 "URL"
 
-# 4. Trim Mode (lossless fast stream copy for specific duration)
+# Lossless section trim
 ytd -t 01:20 02:45 "URL"
 
-# 5. Enable Cookies (automatically loaded from config based on URL match)
+# Use a site-specific cookie file
 ytd -c "URL"
 ```
 
-### `bridge` — Browser Extension Background Server
+Downloads are saved under the current user's `Downloads\VampYTD` directory. Optional cookie files are read from the operating system's user configuration directory under `vampytd`:
 
-Starts a lightweight background HTTP server listening on port `8080` to bridge browser events to your terminal downloader.
+- `cookies-yt.txt`
+- `cookies-jhs.txt`
 
-```bash
-# 1. Register and enable the systemd daemon (recommended)
-./bridge --install    # or ./bridge -i
+## Manual and source installation
 
-# 2. Start the bridge manually in the current terminal window
-./bridge
+To install without automatic dependency setup:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+./deploy.ps1
 ```
 
----
+Use `-InstallDependencies` to request dependency installation and `-NoLaunch` to avoid opening the browser and extension folder.
 
-## ⚙️ Configuration & Paths
+Go 1.26.2 or newer is required for source builds:
 
-VampYTD uses dynamic home-directory resolution to determine the following local paths:
+```powershell
+go test ./...
+go build -o ytd.exe ./cmd/ytd
+go build -o bridge.exe ./cmd/bridge
+```
 
-* **Downloads Target**: `~/Downloads/VampYTD/`
-* **YouTube Cookie Storage**: `~/.config/vampytd/cookies-yt.txt`
-* **Hotstar Cookie Storage**: `~/.config/vampytd/cookies-jhs.txt`
+The Go commands remain portable, and CI continues to test Windows, Linux, and macOS. User-friendly Linux and macOS packaging is intentionally deferred; the current public release is Windows-only.
 
-> [!TIP]
-> Place your browser-exported cookies in the `~/.config/vampytd/` folder. When running with the `-c` flag, VampYTD will automatically load the appropriate cookie file for YouTube or Hotstar/JioHotstar!
+## Project layout
 
----
+```text
+cmd/ytd/            downloader command
+cmd/bridge/         native host and compatibility bridge
+VampYTDExtension/   Chromium extension
+deploy.ps1          Windows install and repair logic
+uninstall.ps1       Windows removal logic
+.github/workflows/  continuous integration and releases
+spec.md             downloader behavior specification
+```
 
-## 🧩 Browser Extension Setup
+## Release process
 
-VampYTD comes with a modern manifest-v3 chrome extension for one-click downloading.
+Windows AMD64 and ARM64 ZIP archives are created from semantic-version tags such as `v1.3.0`. The tag must match the extension version. Releases include SHA-256 checksums and GitHub artifact attestations.
 
-1. Open your Chromium-based browser (Chrome, Edge, Brave, etc.) and navigate to the Extensions page (`chrome://extensions` or `edge://extensions`).
-2. Toggle **Developer mode** in the upper right.
-3. Click **Load unpacked** in the top-left corner.
-4. Select the `VampYTDExtension` directory within this repository.
-5. Click the extension toolbar icon to view the dynamic slate-minimal console. You can toggle **Download Mode**, **Preferred Codec (AV1/VP9/H264)**, **Cookies**, and verify the live connection indicator dot (green when bridge is online, amber when bridge is offline).
-6. Click the watch page download button on YouTube to immediately trigger high-speed optimized CLI downloads!
-
----
-
-## 🔍 Technical Specification
-
-For the full architectural details, API specifications, output formatting contracts, and program constraints, see [spec.md](./spec.md).
+VampYTD is available under the [MIT License](LICENSE). Windows code signing is recommended but is not yet configured.

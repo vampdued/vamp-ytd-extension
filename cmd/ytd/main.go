@@ -97,7 +97,8 @@ func matchesCodec(vcodec, reqCodec string) bool {
 	case "vp9", "vp09":
 		return strings.Contains(v, "vp9") || strings.Contains(v, "vp09")
 	case "hevc", "h265", "h.265":
-		return strings.Contains(v, "hevc") || strings.Contains(v, "h265") || strings.Contains(v, "h.265")
+		return strings.Contains(v, "hevc") || strings.Contains(v, "h265") || strings.Contains(v, "h.265") ||
+			strings.Contains(v, "hev1") || strings.Contains(v, "hvc1")
 	case "h264", "h.264", "avc", "avc1":
 		return strings.Contains(v, "h264") || strings.Contains(v, "h.264") || strings.Contains(v, "avc")
 	default:
@@ -299,7 +300,7 @@ func getCodecRank(vcodec string) int {
 	if strings.HasPrefix(v, "vp9") || strings.HasPrefix(v, "vp09") {
 		return 2
 	}
-	if strings.HasPrefix(v, "h265") || strings.HasPrefix(v, "hevc") {
+	if strings.HasPrefix(v, "h265") || strings.HasPrefix(v, "hevc") || strings.HasPrefix(v, "hev1") || strings.HasPrefix(v, "hvc1") {
 		return 3
 	}
 	if strings.HasPrefix(v, "h264") || strings.HasPrefix(v, "avc1") {
@@ -485,7 +486,7 @@ func formatLine(f Format) string {
 	}
 
 	sizeStr := formatSize(f.EffectiveSize)
-	
+
 	bitrateStr := "-"
 	if f.Raw.TBR != nil && *f.Raw.TBR > 0 {
 		bitrateStr = fmt.Sprintf("%.0fK", *f.Raw.TBR)
@@ -519,6 +520,10 @@ func formatLine(f Format) string {
 }
 
 func pickFormats(formats []Format) string {
+	if !commandExists("fzf") {
+		return pickFormatsFallback(formats)
+	}
+
 	header := fmt.Sprintf("%-6s %-8s %-6s %-6s %4s %10s %-8s %s", "ID", "RES", "VCODEC", "ACODEC", "FPS", "SIZE", "BITRATE", "FLAGS")
 
 	var body []string
@@ -593,6 +598,59 @@ func pickFormats(formats []Format) string {
 	}
 }
 
+func pickFormatsFallback(formats []Format) string {
+	fmt.Println(yellow(">> fzf was not found; using the built-in numbered selector."))
+	for i, f := range formats {
+		fmt.Printf("%3d  %s\n", i+1, stripANSI(formatLine(f)))
+	}
+
+	for {
+		answer := prompt("Select one video and optionally audio (for example 1 or 1,12; blank cancels): ")
+		if answer == "" {
+			fmt.Println(yellow(">> Cancelled."))
+			os.Exit(0)
+		}
+
+		seen := make(map[int]bool)
+		var selected []Format
+		valid := true
+		for _, token := range strings.Split(answer, ",") {
+			index, err := strconv.Atoi(strings.TrimSpace(token))
+			if err != nil || index < 1 || index > len(formats) || seen[index] {
+				valid = false
+				break
+			}
+			seen[index] = true
+			selected = append(selected, formats[index-1])
+		}
+		if !valid || len(selected) == 0 {
+			fmt.Println(red(">> Enter valid, comma-separated item numbers."))
+			continue
+		}
+
+		var videoIDs, audioIDs []string
+		for _, f := range selected {
+			if f.IsAudioOnly {
+				audioIDs = append(audioIDs, f.Raw.FormatID)
+			} else {
+				videoIDs = append(videoIDs, f.Raw.FormatID)
+			}
+		}
+		if len(videoIDs) > 1 {
+			fmt.Println(red(">> Select only one video track, optionally with one or more audio tracks."))
+			continue
+		}
+
+		ids := append(videoIDs, audioIDs...)
+		formatString := strings.Join(ids, "+")
+		if len(ids) == 1 && len(videoIDs) == 1 && selected[0].IsVideoOnly {
+			formatString += "+bestaudio/best"
+		}
+		fmt.Println(cyan(">> Selected IDs: " + formatString))
+		return formatString
+	}
+}
+
 // ==============================================================================
 // FEATURE 3: MKV MERGE + METADATA EMBEDDING
 // ==============================================================================
@@ -624,7 +682,7 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 	finalArgs = append(finalArgs, url)
 
 	cmd := exec.Command(ytdlp, finalArgs...)
-	
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		die("Failed to create stdout pipe: " + err.Error())
@@ -646,7 +704,7 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 				lineBuf = append(lineBuf, b)
 				if b == '\n' || b == '\r' {
 					line := string(lineBuf)
-					
+
 					// Filter noisy messages
 					if strings.Contains(line, "Downloading webpage") ||
 						strings.Contains(line, "Downloading android vr") ||
@@ -704,8 +762,12 @@ func main() {
 			home = "."
 		}
 	}
-	cookiesYT = filepath.Join(home, ".config", "vampytd", "cookies-yt.txt")
-	cookiesJHS = filepath.Join(home, ".config", "vampytd", "cookies-jhs.txt")
+	configRoot, configErr := os.UserConfigDir()
+	if configErr != nil {
+		configRoot = filepath.Join(home, ".config")
+	}
+	cookiesYT = filepath.Join(configRoot, "vampytd", "cookies-yt.txt")
+	cookiesJHS = filepath.Join(configRoot, "vampytd", "cookies-jhs.txt")
 	downloadDir = filepath.Join(home, "Downloads", "VampYTD")
 
 	quickMode, quickOptions, trimMode, useCookies, startTime, endTime, url := parseArgs()
@@ -739,11 +801,14 @@ func main() {
 	}
 
 	// Dependencies
-	if !commandExists(ffmpeg) {
-		die("ffmpeg is required for MKV merge. Install via Scoop: scoop install ffmpeg")
+	if !commandExists(ytdlp) {
+		die("yt-dlp is required and was not found in PATH.")
 	}
-	if !commandExists("fzf") {
-		die("fzf is required. Install via Scoop: scoop install fzf")
+	if !commandExists(ffmpeg) {
+		die("ffmpeg is required for MKV merge and was not found in PATH.")
+	}
+	if !commandExists("node") {
+		die("Node.js is required by the configured yt-dlp JavaScript runtime and was not found in PATH.")
 	}
 
 	fmt.Println(dkCyan("=== VampYTD ==="))

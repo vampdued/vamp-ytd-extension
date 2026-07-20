@@ -1,9 +1,8 @@
 # Compiled Go binaries
-ytd
-bridge
+/ytd
+/bridge
 *.exe
 *.exe~
-ytdn.exe
 
 # Node
 node_modules/
