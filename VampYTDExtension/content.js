@@ -1,5 +1,5 @@
-// --- Professional Material Icons (SVGs) ---
-const downloadIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M480-320 280-520l56-58 104 104v-326h80v326l104-104 56 58-200 200ZM240-160q-33 0-56.5-23.5T160-240v-120h80v120h480v-120h80v120q0 33-23.5 56.5T720-160H240Z"/></svg>`;
+// --- YouTube action-button icons (SVGs) ---
+const downloadIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>`;
 
 const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
 
@@ -14,7 +14,7 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
             buttonElement.style.backgroundColor = succeeded ? '#4CAF50' : '#ef4444';
             buttonElement.style.transform = 'scale(1.1)';
         } else {
-            buttonElement.innerHTML = `${succeeded ? checkIconSvg : downloadIconSvg} <span style="margin-left: 8px;">${label}</span>`;
+            buttonElement.innerHTML = createWatchButtonContent(succeeded ? checkIconSvg : downloadIconSvg, label);
             buttonElement.style.color = '#fff';
             buttonElement.style.backgroundColor = succeeded ? '#4CAF50' : '#ef4444';
         }
@@ -65,45 +65,23 @@ function injectWatchPageButton() {
         }
     });
 
-    const btn = document.createElement('button');
-    btn.id = 'vampytd-watch-btn';
-    btn.type = 'button';
-    btn.setAttribute('aria-label', 'Download with VampYTD');
-    
-    const originalContent = `${downloadIconSvg} <span style="margin-left: 8px; font-weight: 500;">VampYTD</span>`;
-    btn.innerHTML = originalContent;
-    
-    // Use YouTube's native CSS variables and styling
-    btn.style.cssText = `
-        background-color: var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05));
-        color: var(--yt-spec-text-primary);
-        border: none;
-        padding: 0 16px;
-        height: 36px;
-        border-radius: 18px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        margin-right: 8px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-family: "Roboto", "Arial", sans-serif;
-        transition: background-color 0.2s cubic-bezier(0.05, 0, 0, 1);
-        box-sizing: border-box;
-        white-space: nowrap;
-    `;
+    // Mirror YouTube's modern tonal, icon-leading action-button markup.  This lets
+    // the button inherit YouTube's theme, hover, touch-feedback, and responsive UI.
+    const buttonModel = document.createElement('yt-button-view-model');
+    buttonModel.id = 'vampytd-watch-btn';
+    buttonModel.className = 'ytd-menu-renderer';
+    // Native action groups are separated by 8px.  The injected model does not
+    // receive YouTube's renderer-generated spacing, so provide that gap here.
+    buttonModel.style.marginRight = '8px';
+    buttonModel.innerHTML = `
+            <button-view-model class="ytSpecButtonViewModelHost style-scope ytd-menu-renderer">
+            <button type="button" class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="" aria-label="Download with VampYTD" aria-disabled="false">
+                ${createWatchButtonContent(downloadIconSvg, 'VampYTD')}
+            </button>
+        </button-view-model>`;
 
-    btn.onmouseover = () => {
-        if (btn.dataset.vampytdBusy === 'true') return;
-        btn.style.backgroundColor = 'var(--yt-spec-button-chip-background-hover, rgba(0, 0, 0, 0.1))';
-    };
-    btn.onmouseout = () => {
-        if (btn.dataset.vampytdBusy === 'true') return;
-        btn.style.backgroundColor = 'var(--yt-spec-badge-chip-background, rgba(0, 0, 0, 0.05))';
-    };
-    btn.onmousedown = () => { btn.style.transform = 'scale(0.95)'; };
-    btn.onmouseup = () => { btn.style.transform = 'scale(1)'; };
+    const btn = buttonModel.querySelector('button');
+    const originalContent = createWatchButtonContent(downloadIconSvg, 'VampYTD');
 
     btn.addEventListener('click', (event) => {
         event.preventDefault();
@@ -112,8 +90,16 @@ function injectWatchPageButton() {
         triggerDownload(window.location.href, btn, originalContent, false);
     }, true);
 
-    // Insert exactly at the start of the action buttons (before Like)
-    menuContainer.insertBefore(btn, menuContainer.firstChild);
+    // Insert exactly at the start of the action buttons (before Like).
+    menuContainer.insertBefore(buttonModel, menuContainer.firstChild);
+}
+
+function createWatchButtonContent(icon, label) {
+    return `
+        <div aria-hidden="true" class="ytSpecButtonShapeNextIcon ytSpecButtonShapeNextElevatedContent"><span class="ytIconWrapperHost" style="width: 24px; height: 24px;"><span class="yt-icon-shape ytSpecIconShapeHost"><div style="width: 100%; height: 100%; display: block; fill: currentcolor;">${icon}</div></span></span></div>
+        <div class="ytSpecButtonShapeNextButtonTextContent ytSpecButtonShapeNextElevatedContent">${label}</div>
+        <yt-touch-feedback-shape aria-hidden="true" class="ytSpecTouchFeedbackShapeHost ytSpecTouchFeedbackShapeTouchResponse"><div class="ytSpecTouchFeedbackShapeStroke"></div><div class="ytSpecTouchFeedbackShapeFill"></div></yt-touch-feedback-shape>
+        <yt-light-shape aria-hidden="true" class="contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal"><div class="contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal"></div></yt-light-shape>`;
 }
 
 // --- Dynamic Page Observer ---
