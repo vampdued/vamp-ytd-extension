@@ -37,24 +37,24 @@ foreach ($root in $registryRoots) {
 
 Write-Host "`n[2/4] Removing obsolete startup entries" -ForegroundColor Cyan
 if (Test-Path -LiteralPath $StartupPath) {
-    Remove-Item -LiteralPath $StartupPath -Force
+    Remove-Item -LiteralPath $StartupPath -Force -ErrorAction SilentlyContinue
 }
-$existingTask = Get-ScheduledTask -TaskName "VampYTDBridge" -ErrorAction SilentlyContinue
-if ($existingTask) {
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator
-    )
-    if ($isAdmin) {
-        Unregister-ScheduledTask -TaskName "VampYTDBridge" -Confirm:$false | Out-Null
-    } else {
-        Write-Warning "The obsolete administrator-created VampYTDBridge task must be removed from an Administrator PowerShell window."
+try {
+    $existingTask = Get-ScheduledTask -TaskName "VampYTDBridge" -ErrorAction SilentlyContinue
+    if ($existingTask) {
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator
+        )
+        if ($isAdmin) {
+            Unregister-ScheduledTask -TaskName "VampYTDBridge" -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+        }
     }
-}
+} catch {}
 
 Write-Host "`n[3/4] Cleaning the user PATH" -ForegroundColor Cyan
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $pathEntries = @($userPath -split ";" | Where-Object {
-    $_ -and -not $_.Equals($RunDir, [StringComparison]::OrdinalIgnoreCase)
+    $_ -and -not $_.Trim().Equals($RunDir, [StringComparison]::OrdinalIgnoreCase)
 })
 [Environment]::SetEnvironmentVariable("Path", ($pathEntries -join ";"), "User")
 

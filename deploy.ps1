@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$InstallDependencies,
+    [switch]$InstallFZF,
     [switch]$NoLaunch
 )
 
@@ -13,10 +14,13 @@ $StartupPath = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Sta
 $SourceBuild = (Test-Path -LiteralPath (Join-Path $WorkspaceDir "cmd\ytd")) -and
     (Test-Path -LiteralPath (Join-Path $WorkspaceDir "cmd\bridge"))
 
-$Dependencies = @(
+$RequiredDependencies = @(
     [pscustomobject]@{ Name = "yt-dlp"; Command = "yt-dlp"; Package = "yt-dlp.yt-dlp" },
     [pscustomobject]@{ Name = "FFmpeg"; Command = "ffmpeg"; Package = "Gyan.FFmpeg" },
     [pscustomobject]@{ Name = "Node.js"; Command = "node"; Package = "OpenJS.NodeJS.LTS" }
+)
+$OptionalDependencies = @(
+    [pscustomobject]@{ Name = "FZF"; Command = "fzf"; Package = "junegunn.fzf" }
 )
 
 function Write-Step([string]$Text) {
@@ -30,7 +34,8 @@ function Refresh-ProcessPath {
 }
 
 function Get-MissingDependencies {
-    return @($Dependencies | Where-Object {
+    param([array]$List)
+    return @($List | Where-Object {
         -not (Get-Command $_.Command -ErrorAction SilentlyContinue)
     })
 }
@@ -41,13 +46,13 @@ function Install-MissingDependencies {
     if ($Missing.Count -eq 0) { return }
     $winget = Get-Command "winget.exe" -ErrorAction SilentlyContinue
     if (-not $winget) {
-        Write-Warning "Windows Package Manager is unavailable, so dependencies cannot be installed automatically."
+        Write-Warning "Windows Package Manager (winget) is unavailable, so dependencies cannot be installed automatically."
         return
     }
 
     foreach ($dependency in $Missing) {
         Write-Host "Installing $($dependency.Name)..." -ForegroundColor Blue
-        & $winget.Source install --exact --id $dependency.Package --accept-package-agreements --accept-source-agreements --silent --disable-interactivity
+        & $winget.Path install --exact --id $dependency.Package --accept-package-agreements --accept-source-agreements --silent --disable-interactivity
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "Automatic installation of $($dependency.Name) returned exit code $LASTEXITCODE."
         }
@@ -87,13 +92,26 @@ Write-Host "VampYTD Setup" -ForegroundColor Magenta
 Write-Host "Installs or repairs the downloader and browser connection for the current user."
 
 Write-Step "[1/6] Checking required tools"
-$missing = Get-MissingDependencies
-if ($missing.Count -eq 0) {
+$missingRequired = Get-MissingDependencies -List $RequiredDependencies
+$toInstall = @()
+
+if ($InstallDependencies) {
+    $toInstall += $missingRequired
+}
+if ($InstallDependencies -or $InstallFZF) {
+    $missingOptional = Get-MissingDependencies -List $OptionalDependencies
+    $toInstall += $missingOptional
+}
+
+if ($toInstall.Count -gt 0) {
+    Install-MissingDependencies -Missing $toInstall
+    $missingRequired = Get-MissingDependencies -List $RequiredDependencies
+}
+
+if ($missingRequired.Count -eq 0) {
     Write-Host "All required tools are available." -ForegroundColor Green
-} elseif ($InstallDependencies) {
-    Install-MissingDependencies -Missing $missing
 } else {
-    Write-Warning "Missing: $($missing.Name -join ', '). Run Install-VampYTD.cmd for automatic setup."
+    Write-Warning "Missing required tools: $($missingRequired.Name -join ', '). Run Install-VampYTD.cmd for automatic setup."
 }
 
 Write-Step "[2/6] Preparing VampYTD binaries"
@@ -162,19 +180,19 @@ if ($pathEntries -notcontains $RunDir) {
 
 Write-Step "[5/6] Registering the browser connection"
 if (Test-Path -LiteralPath $StartupPath) {
-    Remove-Item -LiteralPath $StartupPath -Force
+    Remove-Item -LiteralPath $StartupPath -Force -ErrorAction SilentlyContinue
 }
-$existingTask = Get-ScheduledTask -TaskName "VampYTDBridge" -ErrorAction SilentlyContinue
-if ($existingTask) {
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator
-    )
-    if ($isAdmin) {
-        Unregister-ScheduledTask -TaskName "VampYTDBridge" -Confirm:$false | Out-Null
-    } else {
-        Write-Warning "An obsolete administrator-created VampYTDBridge task remains, but it is no longer used."
+try {
+    $existingTask = Get-ScheduledTask -TaskName "VampYTDBridge" -ErrorAction SilentlyContinue
+    if ($existingTask) {
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator
+        )
+        if ($isAdmin) {
+            Unregister-ScheduledTask -TaskName "VampYTDBridge" -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
+        }
     }
-}
+} catch {}
 
 & (Join-Path $RunDir "bridge.exe") --install-native
 if ($LASTEXITCODE -ne 0) { throw "Native messaging registration failed with exit code $LASTEXITCODE." }
@@ -186,6 +204,12 @@ if (-not $chromeRegistration -or -not (Test-Path -LiteralPath $chromeRegistratio
 Write-Host "Browser connection registered successfully." -ForegroundColor Green
 
 Write-Step "[6/6] Finishing extension setup"
+try {
+    Set-Clipboard -Value $ExtensionDestination
+} catch {
+    Write-Warning "The extension path could not be copied to the clipboard."
+}
+
 $browser = Find-Browser
 if (-not $NoLaunch) {
     if ($browser) {
@@ -193,19 +217,20 @@ if (-not $NoLaunch) {
         Write-Host "Opened the $($browser.Name) extensions page."
     }
     Start-Process -FilePath "explorer.exe" -ArgumentList ('"{0}"' -f $ExtensionDestination)
-    try {
-        Set-Clipboard -Value $ExtensionDestination
-    } catch {
-        Write-Warning "The extension path could not be copied to the clipboard."
-    }
 }
 
-$missing = Get-MissingDependencies
+$missingReq = Get-MissingDependencies -List $RequiredDependencies
+$missingFzf = Get-MissingDependencies -List $OptionalDependencies
+
 Write-Host "`nInstallation complete." -ForegroundColor Green
 Write-Host "Extension folder (copied to clipboard): $ExtensionDestination"
 Write-Host "In the browser, enable Developer mode, choose 'Load unpacked', and select that folder." -ForegroundColor Yellow
-if ($missing.Count -gt 0) {
-    Write-Warning "Downloads will not work until these tools are installed: $($missing.Name -join ', ')."
+if ($missingReq.Count -gt 0) {
+    Write-Warning "Downloads will not work until these tools are installed: $($missingReq.Name -join ', ')."
 } else {
     Write-Host "All required tools are ready. Reload the extension and open its Status tab to verify." -ForegroundColor Green
 }
+if ($missingFzf.Count -gt 0) {
+    Write-Host "Note: FZF is not installed. Interactive format selection will fall back to numbered lists." -ForegroundColor DarkGray
+}
+

@@ -5,57 +5,57 @@ VampYTD is a Windows-first video downloader with a Chromium browser extension. I
 ## Simple Windows installation
 
 1. Download the Windows ZIP from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
-2. Extract the complete ZIP.
+2. Extract the complete ZIP archive.
 3. Double-click `Install-VampYTD.cmd`.
-4. On the browser extensions page, enable **Developer mode**, choose **Load unpacked**, and select the folder opened by setup.
+4. On the browser extensions page that opens, enable **Developer mode**, click **Load unpacked**, and select the extension folder (path auto-copied to clipboard).
 
-The installer:
+The double-click installer:
 
-- installs missing `yt-dlp`, FFmpeg, and Node.js packages through Windows Package Manager;
+- installs missing `yt-dlp`, FFmpeg, Node.js, and FZF packages automatically via Windows Package Manager (`winget`);
 - installs VampYTD under `%LOCALAPPDATA%\VampYTD`;
-- adds the command-line downloader to the user `PATH`;
+- adds the `ytd` command-line downloader to your user `PATH`;
 - registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
-- opens the installed extension folder and copies its path to the clipboard.
+- opens your browser extensions page and copies the unpacked extension folder path to your clipboard.
 
-Administrator access is not normally required. Run the installer again at any time to repair or update the installation.
+Administrator access is not required. Run `Install-VampYTD.cmd` again at any time to repair or update the installation.
 
-To remove VampYTD, first remove the unpacked browser extension and then double-click `Uninstall-VampYTD.cmd`.
+To uninstall VampYTD, remove the unpacked browser extension and double-click `Uninstall-VampYTD.cmd`.
 
-> Windows releases are currently unsigned. Windows may display a security warning until code signing is configured.
+> Windows releases are currently unsigned. Windows may display a SmartScreen security warning on first launch.
 
 ## Requirements
 
-The double-click installer handles the required tools automatically when Windows Package Manager is available.
+The installer sets up dependencies automatically via Windows Package Manager (`winget`).
 
-| Tool | Required | Purpose |
-| --- | --- | --- |
-| `yt-dlp` | Yes | Video extraction and download |
-| FFmpeg | Yes | Merging, thumbnails, and trimming |
-| Node.js | Yes | JavaScript runtime used by `yt-dlp` |
-| FZF | No | Enhanced interactive format picker |
+| Tool | Required | Auto-Installed | Purpose |
+| --- | --- | --- | --- |
+| `yt-dlp` | Yes | Yes (`yt-dlp.yt-dlp`) | Video extraction and download |
+| FFmpeg | Yes | Yes (`Gyan.FFmpeg`) | Merging, thumbnails, and trimming |
+| Node.js | Yes | Yes (`OpenJS.NodeJS.LTS`) | JavaScript runtime used by `yt-dlp` |
+| FZF | Optional | Yes (`junegunn.fzf`) | Enhanced interactive format picker (falls back to numbered lists if missing) |
 
-Keep `yt-dlp` current because video-site extractors change frequently.
+Keep `yt-dlp` current (`yt-dlp -U` or `winget upgrade yt-dlp.yt-dlp`) as video site extractors update frequently.
 
 ## Browser extension
 
-The extension offers:
+The Chromium extension features:
 
-- a right-click download menu;
-- a VampYTD button on YouTube video pages;
-- download mode, codec, and cookie settings;
-- a diagnostic dashboard for native messaging, the optional localhost fallback, dependencies, and download location.
+- a right-click context menu to send videos directly to VampYTD;
+- an embedded **Download with VampYTD** button on YouTube video pages;
+- customizable download mode (interactive vs quick options), codec preference, and cookie toggle;
+- a diagnostic dashboard verifying native messaging, dependencies, and download location.
 
-Chromium native messaging starts the bridge only when required. New installations do not need a permanent background process, startup shortcut, scheduled task, or listening network port. A secured localhost mode remains available only as a compatibility fallback for older installations.
+Chromium native messaging launches the bridge process on demand with zero permanent background tasks, startup shortcuts, or listening network ports.
 
-The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd`, and native-host manifests authorize that exact origin.
+The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd`.
 
 ## Command-line usage
 
 ```powershell
-# Interactive format selection
+# Interactive format selection (uses FZF if available, or numbered fallback)
 ytd "https://www.youtube.com/watch?v=..."
 
-# Best available quality
+# Best available quality (quick mode)
 ytd -q "URL"
 
 # Resolution and codec constraints
@@ -65,27 +65,31 @@ ytd -q 4k,av1 "URL"
 # Lossless section trim
 ytd -t 01:20 02:45 "URL"
 
-# Use a site-specific cookie file
+# Use site-specific cookie file
 ytd -c "URL"
 ```
 
-Downloads are saved under the current user's `Downloads\VampYTD` directory. Optional cookie files are read from the operating system's user configuration directory under `vampytd`:
+Downloads are saved under `%USERPROFILE%\Downloads\VampYTD`. Optional cookie files are stored under `%APPDATA%\vampytd`:
 
 - `cookies-yt.txt`
 - `cookies-jhs.txt`
 
 ## Manual and source installation
 
-To install without automatic dependency setup:
+To run setup manually without launching the browser or Explorer:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-./deploy.ps1
+./deploy.ps1 -InstallDependencies -NoLaunch
 ```
 
-Use `-InstallDependencies` to request dependency installation and `-NoLaunch` to avoid opening the browser and extension folder.
+To specifically install FZF via winget during manual setup:
 
-Go 1.26.2 or newer is required for source builds:
+```powershell
+./deploy.ps1 -InstallFZF
+```
+
+Building from source requires Go 1.26.2 or newer:
 
 ```powershell
 go test ./...
@@ -93,22 +97,23 @@ go build -o ytd.exe ./cmd/ytd
 go build -o bridge.exe ./cmd/bridge
 ```
 
-The Go commands remain portable, and CI continues to test Windows, Linux, and macOS. User-friendly Linux and macOS packaging is intentionally deferred; the current public release is Windows-only.
-
 ## Project layout
 
 ```text
-cmd/ytd/            downloader command
-cmd/bridge/         native host and compatibility bridge
-VampYTDExtension/   Chromium extension
-deploy.ps1          Windows install and repair logic
-uninstall.ps1       Windows removal logic
-.github/workflows/  continuous integration and releases
-spec.md             downloader behavior specification
+cmd/ytd/            downloader command-line application
+cmd/bridge/         native messaging bridge for browser integration
+VampYTDExtension/   Chromium Manifest V3 browser extension
+Install-VampYTD.cmd double-click Windows installer wrapper
+Uninstall-VampYTD.cmd double-click Windows uninstaller wrapper
+deploy.ps1          PowerShell installation and dependency logic
+uninstall.ps1       PowerShell removal logic
+.github/workflows/  CI and release pipelines
+spec.md             downloader technical specification
 ```
 
 ## Release process
 
-Windows AMD64 and ARM64 ZIP archives are created from semantic-version tags such as `v1.3.0`. The tag must match the extension version. Releases include SHA-256 checksums and GitHub artifact attestations.
+Windows AMD64 and ARM64 ZIP archives are generated automatically upon pushing a semantic version tag (e.g. `v1.3.0`).
 
-VampYTD is available under the [MIT License](LICENSE). Windows code signing is recommended but is not yet configured.
+VampYTD is released under the [MIT License](LICENSE).
+
