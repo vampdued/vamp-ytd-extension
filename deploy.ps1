@@ -1,8 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$InstallDependencies,
-    [switch]$InstallFZF,
-    [switch]$NoLaunch
+    [switch]$InstallFZF
 )
 
 $ErrorActionPreference = "Stop"
@@ -58,34 +57,6 @@ function Install-MissingDependencies {
         }
     }
     Refresh-ProcessPath
-}
-
-function Find-Browser {
-    $candidates = @(
-        [pscustomobject]@{ Name = "Google Chrome"; Page = "chrome://extensions/"; Paths = @(
-            (Join-Path ${env:ProgramFiles(x86)} "Google\Chrome\Application\chrome.exe"),
-            (Join-Path $env:ProgramFiles "Google\Chrome\Application\chrome.exe"),
-            (Join-Path $env:LOCALAPPDATA "Google\Chrome\Application\chrome.exe")
-        ) },
-        [pscustomobject]@{ Name = "Microsoft Edge"; Page = "edge://extensions/"; Paths = @(
-            (Join-Path ${env:ProgramFiles(x86)} "Microsoft\Edge\Application\msedge.exe"),
-            (Join-Path $env:ProgramFiles "Microsoft\Edge\Application\msedge.exe")
-        ) },
-        [pscustomobject]@{ Name = "Brave"; Page = "brave://extensions/"; Paths = @(
-            (Join-Path $env:ProgramFiles "BraveSoftware\Brave-Browser\Application\brave.exe"),
-            (Join-Path ${env:ProgramFiles(x86)} "BraveSoftware\Brave-Browser\Application\brave.exe"),
-            (Join-Path $env:LOCALAPPDATA "BraveSoftware\Brave-Browser\Application\brave.exe")
-        ) }
-    )
-
-    foreach ($browser in $candidates) {
-        foreach ($path in $browser.Paths) {
-            if ($path -and (Test-Path -LiteralPath $path)) {
-                return [pscustomobject]@{ Name = $browser.Name; Path = $path; Page = $browser.Page }
-            }
-        }
-    }
-    return $null
 }
 
 Write-Host "VampYTD Setup" -ForegroundColor Magenta
@@ -206,25 +177,17 @@ Write-Host "Browser connection registered successfully." -ForegroundColor Green
 Write-Step "[6/6] Finishing extension setup"
 try {
     Set-Clipboard -Value $ExtensionDestination
+    Write-Host "Copied extension folder path to clipboard." -ForegroundColor Green
 } catch {
     Write-Warning "The extension path could not be copied to the clipboard."
-}
-
-$browser = Find-Browser
-if (-not $NoLaunch) {
-    if ($browser) {
-        Start-Process -FilePath $browser.Path -ArgumentList $browser.Page
-        Write-Host "Opened the $($browser.Name) extensions page."
-    }
-    Start-Process -FilePath "explorer.exe" -ArgumentList ('"{0}"' -f $ExtensionDestination)
 }
 
 $missingReq = Get-MissingDependencies -List $RequiredDependencies
 $missingFzf = Get-MissingDependencies -List $OptionalDependencies
 
 Write-Host "`nInstallation complete." -ForegroundColor Green
-Write-Host "Extension folder (copied to clipboard): $ExtensionDestination"
-Write-Host "In the browser, enable Developer mode, choose 'Load unpacked', and select that folder." -ForegroundColor Yellow
+Write-Host "Extension folder: $ExtensionDestination"
+Write-Host "In your browser extensions page, enable Developer mode, click 'Load unpacked', and select that folder." -ForegroundColor Yellow
 if ($missingReq.Count -gt 0) {
     Write-Warning "Downloads will not work until these tools are installed: $($missingReq.Name -join ', ')."
 } else {

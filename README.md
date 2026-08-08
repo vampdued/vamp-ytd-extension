@@ -7,7 +7,7 @@ VampYTD is a Windows-first video downloader with a Chromium browser extension. I
 1. Download the Windows ZIP from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
 2. Extract the complete ZIP archive.
 3. Double-click `Install-VampYTD.cmd`.
-4. On the browser extensions page that opens, enable **Developer mode**, click **Load unpacked**, and select the extension folder (path auto-copied to clipboard).
+4. Open your browser extensions page (`chrome://extensions`, `edge://extensions`, or `brave://extensions`), enable **Developer mode**, click **Load unpacked**, and paste/select the extension folder (path auto-copied to clipboard).
 
 The double-click installer:
 
@@ -15,7 +15,7 @@ The double-click installer:
 - installs VampYTD under `%LOCALAPPDATA%\VampYTD`;
 - adds the `ytd` command-line downloader to your user `PATH`;
 - registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
-- opens your browser extensions page and copies the unpacked extension folder path to your clipboard.
+- copies the unpacked extension folder path directly to your clipboard.
 
 Administrator access is not required. Run `Install-VampYTD.cmd` again at any time to repair or update the installation.
 
@@ -76,11 +76,11 @@ Downloads are saved under `%USERPROFILE%\Downloads\VampYTD`. Optional cookie fil
 
 ## Manual and source installation
 
-To run setup manually without launching the browser or Explorer:
+To run setup manually from PowerShell:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-./deploy.ps1 -InstallDependencies -NoLaunch
+./deploy.ps1 -InstallDependencies
 ```
 
 To specifically install FZF via winget during manual setup:

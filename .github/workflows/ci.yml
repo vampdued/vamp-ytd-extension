@@ -47,7 +47,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: powershell
         run: |
-          ./deploy.ps1 -NoLaunch
+          ./deploy.ps1
           $installRoot = Join-Path $env:LOCALAPPDATA 'VampYTD'
           foreach ($file in @('ytd.exe', 'bridge.exe', 'VampYTDExtension\manifest.json')) {
             if (-not (Test-Path -LiteralPath (Join-Path $installRoot $file))) {
