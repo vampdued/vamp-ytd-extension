@@ -74,6 +74,26 @@ Downloads are saved under `%USERPROFILE%\Downloads\VampYTD`. Optional cookie fil
 - `cookies-yt.txt`
 - `cookies-jhs.txt`
 
+## Using cookies
+
+Cookies allow VampYTD to access videos that require your existing browser session, such as age-restricted, members-only, or authenticated content.
+
+1. Sign in to the video site in your browser.
+2. Export the site's cookies in Netscape `cookies.txt` format. A valid export commonly begins with `# Netscape HTTP Cookie File`.
+3. Press `Win + R`, enter `%APPDATA%\vampytd`, and create the folder if it does not exist.
+4. Save the exported file using the appropriate name:
+   - YouTube: `cookies-yt.txt`
+   - JioHotstar/Hotstar: `cookies-jhs.txt`
+5. In the VampYTD extension popup, enable **Load cookies**, then start the download. For command-line downloads, add `-c`:
+
+```powershell
+ytd -c "https://www.youtube.com/watch?v=..."
+```
+
+VampYTD selects `cookies-jhs.txt` for JioHotstar/Hotstar URLs and `cookies-yt.txt` for YouTube and other sites. If authentication stops working, export a fresh cookie file because browser cookies can expire or be replaced.
+
+> Cookie files contain sensitive session credentials. Do not share them or commit them to source control.
+
 ## Manual and source installation
 
 To run setup manually from PowerShell:
