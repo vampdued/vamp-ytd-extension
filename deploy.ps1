@@ -9,6 +9,7 @@ $WorkspaceDir = $PSScriptRoot
 $RunDir = Join-Path $env:LOCALAPPDATA "VampYTD"
 $ExtensionSource = Join-Path $WorkspaceDir "VampYTDExtension"
 $ExtensionDestination = Join-Path $RunDir "VampYTDExtension"
+$ExtensionDestinationFirefox = Join-Path $RunDir "VampYTDExtension-Firefox"
 $StartupPath = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Startup\VampYTD-Bridge.lnk"
 $SourceBuild = (Test-Path -LiteralPath (Join-Path $WorkspaceDir "cmd\ytd")) -and
     (Test-Path -LiteralPath (Join-Path $WorkspaceDir "cmd\bridge"))
@@ -122,6 +123,7 @@ try {
     Write-Step "[3/6] Installing application files"
     New-Item -ItemType Directory -Path $RunDir -Force | Out-Null
     New-Item -ItemType Directory -Path $ExtensionDestination -Force | Out-Null
+    New-Item -ItemType Directory -Path $ExtensionDestinationFirefox -Force | Out-Null
 
     $processes = Get-CimInstance Win32_Process -Filter "Name = 'bridge.exe'" -ErrorAction SilentlyContinue |
         Where-Object { $_.ExecutablePath -eq (Join-Path $RunDir "bridge.exe") }
@@ -129,7 +131,39 @@ try {
 
     Copy-Item -LiteralPath (Join-Path $BinarySourceDir "ytd.exe") -Destination (Join-Path $RunDir "ytd.exe") -Force
     Copy-Item -LiteralPath (Join-Path $BinarySourceDir "bridge.exe") -Destination (Join-Path $RunDir "bridge.exe") -Force
+
+    # 1. Chromium extension directory (uses service_worker)
     Copy-Item -Path (Join-Path $ExtensionSource "*") -Destination $ExtensionDestination -Recurse -Force
+    if (Test-Path -LiteralPath (Join-Path $ExtensionDestination "manifest.firefox.json")) {
+        Remove-Item -LiteralPath (Join-Path $ExtensionDestination "manifest.firefox.json") -Force
+    }
+
+    # 2. Firefox extension directory (uses background.scripts)
+    Copy-Item -Path (Join-Path $ExtensionSource "*") -Destination $ExtensionDestinationFirefox -Recurse -Force
+    Copy-Item -LiteralPath (Join-Path $ExtensionSource "manifest.firefox.json") -Destination (Join-Path $ExtensionDestinationFirefox "manifest.json") -Force
+    if (Test-Path -LiteralPath (Join-Path $ExtensionDestinationFirefox "manifest.firefox.json")) {
+        Remove-Item -LiteralPath (Join-Path $ExtensionDestinationFirefox "manifest.firefox.json") -Force
+    }
+
+    # 3. Package Firefox archive from the Firefox directory
+    $ZipDestination = Join-Path $RunDir "VampYTD-Extension.zip"
+    $XpiDestination = Join-Path $RunDir "VampYTD-Extension.xpi"
+    if (Test-Path -LiteralPath $ZipDestination) { Remove-Item -LiteralPath $ZipDestination -Force -ErrorAction SilentlyContinue }
+    if (Test-Path -LiteralPath $XpiDestination) { Remove-Item -LiteralPath $XpiDestination -Force -ErrorAction SilentlyContinue }
+
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    $zipStream = [System.IO.File]::Create($ZipDestination)
+    $zipArch = [System.IO.Compression.ZipArchive]::new($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+    $extFiles = Get-ChildItem -Path $ExtensionDestinationFirefox -Recurse -File
+    foreach ($f in $extFiles) {
+        $rel = $f.FullName.Substring($ExtensionDestinationFirefox.Length).TrimStart("\", "/").Replace("\", "/")
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zipArch, $f.FullName, $rel) | Out-Null
+    }
+    $zipArch.Dispose()
+    $zipStream.Dispose()
+    Copy-Item -LiteralPath $ZipDestination -Destination $XpiDestination -Force
+
     Write-Host "Installed to $RunDir" -ForegroundColor Green
 } finally {
     if ($TemporaryBuildDir -and (Test-Path -LiteralPath $TemporaryBuildDir)) {
@@ -168,9 +202,24 @@ try {
 & (Join-Path $RunDir "bridge.exe") --install-native
 if ($LASTEXITCODE -ne 0) { throw "Native messaging registration failed with exit code $LASTEXITCODE." }
 
-$chromeRegistration = Get-ItemPropertyValue -LiteralPath "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.vampytd.bridge" -Name "(default)" -ErrorAction SilentlyContinue
-if (-not $chromeRegistration -or -not (Test-Path -LiteralPath $chromeRegistration)) {
-    throw "The native host registration could not be verified."
+$browserKeys = @(
+    "HKCU:\Software\Google\Chrome\NativeMessagingHosts\com.vampytd.bridge",
+    "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts\com.vampytd.bridge",
+    "HKCU:\Software\Chromium\NativeMessagingHosts\com.vampytd.bridge",
+    "HKCU:\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\com.vampytd.bridge",
+    "HKCU:\Software\Vivaldi\NativeMessagingHosts\com.vampytd.bridge",
+    "HKCU:\Software\Mozilla\NativeMessagingHosts\com.vampytd.bridge"
+)
+$verified = $false
+foreach ($key in $browserKeys) {
+    $reg = Get-ItemPropertyValue -LiteralPath $key -Name "(default)" -ErrorAction SilentlyContinue
+    if ($reg -and (Test-Path -LiteralPath $reg)) {
+        $verified = $true
+        break
+    }
+}
+if (-not $verified) {
+    throw "The native host registration could not be verified in any supported browser registry key."
 }
 Write-Host "Browser connection registered successfully." -ForegroundColor Green
 
@@ -187,11 +236,27 @@ $missingFzf = Get-MissingDependencies -List $OptionalDependencies
 
 Write-Host "`nInstallation complete." -ForegroundColor Green
 Write-Host "Extension folder: $ExtensionDestination"
-Write-Host "In your browser extensions page, enable Developer mode, click 'Load unpacked', and select that folder." -ForegroundColor Yellow
+Write-Host "Firefox package:  $XpiDestination"
+
+Write-Host "`nTo activate in Chromium browsers (Chrome, Edge, Brave, Vivaldi):" -ForegroundColor Cyan
+Write-Host "  1. Open chrome://extensions (or edge://extensions / brave://extensions)."
+Write-Host "  2. Enable 'Developer mode'."
+Write-Host "  3. Click 'Load unpacked' and select the extension folder (copied to clipboard)."
+
+Write-Host "`nTo activate in Firefox:" -ForegroundColor Cyan
+Write-Host "  Method 1 (All Firefox versions - Developer / Temporary):" -ForegroundColor White
+Write-Host "    1. Open about:debugging#/runtime/this-firefox"
+Write-Host "    2. Click 'Load Temporary Add-on...'"
+Write-Host "    3. Select manifest.json inside: $ExtensionDestinationFirefox"
+Write-Host "  Method 2 (Firefox Developer Edition / ESR / Unbranded - Install from File):" -ForegroundColor White
+Write-Host "    1. Open about:addons and click the gear icon."
+Write-Host "    2. Select 'Install Add-on From File...' and choose: $XpiDestination"
+Write-Host "    (Note: Standard retail Firefox requires xpinstall.signatures.required=false in about:config for unsigned .xpi files)." -ForegroundColor DarkGray
+
 if ($missingReq.Count -gt 0) {
-    Write-Warning "Downloads will not work until these tools are installed: $($missingReq.Name -join ', ')."
+    Write-Warning "`nDownloads will not work until these tools are installed: $($missingReq.Name -join ', ')."
 } else {
-    Write-Host "All required tools are ready. Reload the extension and open its Status tab to verify." -ForegroundColor Green
+    Write-Host "`nAll required tools are ready. Reload the extension and open its Status tab to verify." -ForegroundColor Green
 }
 if ($missingFzf.Count -gt 0) {
     Write-Host "Note: FZF is not installed. Interactive format selection will fall back to numbered lists." -ForegroundColor DarkGray

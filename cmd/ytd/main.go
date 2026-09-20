@@ -5,6 +5,8 @@ package main
 
 import (
 	"bufio"
+	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -16,6 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
+	"unicode/utf16"
 	"unsafe"
 )
 
@@ -27,6 +31,7 @@ var (
 	cookiesYT   string
 	cookiesJHS  string
 	downloadDir string
+	isSpawned   bool
 )
 
 const (
@@ -202,8 +207,95 @@ func commandExists(name string) bool {
 	return err == nil
 }
 
+func encodePowerShellCommand(script string) string {
+	codeUnits := utf16.Encode([]rune(script))
+	data := make([]byte, len(codeUnits)*2)
+	for i, codeUnit := range codeUnits {
+		binary.LittleEndian.PutUint16(data[i*2:], codeUnit)
+	}
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+func showToast(title, message string) {
+	if runtime.GOOS != "windows" {
+		return
+	}
+	cleanTitle := strings.ReplaceAll(title, "'", "''")
+	cleanMsg := strings.ReplaceAll(message, "'", "''")
+
+	script := fmt.Sprintf(`[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+$template = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent([Windows.UI.Notifications.ToastTemplateType]::ToastText02)
+$nodes = $template.GetElementsByTagName('text')
+$nodes.Item(0).AppendChild($template.CreateTextNode('%s')) | Out-Null
+$nodes.Item(1).AppendChild($template.CreateTextNode('%s')) | Out-Null
+$toast = [Windows.UI.Notifications.ToastNotification]::new($template)
+[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('VampYTD').Show($toast)`, cleanTitle, cleanMsg)
+
+	_ = exec.Command("powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-EncodedCommand", encodePowerShellCommand(script)).Start()
+}
+
+func runUpdate() {
+	refreshPATH()
+	fmt.Println(cyan(">> Checking for yt-dlp updates..."))
+
+	// 1. Try yt-dlp -U
+	cmd := exec.Command(ytdlp, "-U")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err == nil {
+		fmt.Println(green(">> yt-dlp updated successfully."))
+		return
+	}
+
+	// 2. If self-update failed, try winget on Windows
+	if runtime.GOOS == "windows" && commandExists("winget") {
+		fmt.Println(yellow(">> Self-update failed; attempting update via Windows Package Manager (winget)..."))
+		wingetCmd := exec.Command("winget", "upgrade", "--exact", "--id", "yt-dlp.yt-dlp", "--accept-source-agreements", "--accept-package-agreements")
+		wingetCmd.Stdout = os.Stdout
+		wingetCmd.Stderr = os.Stderr
+		if err := wingetCmd.Run(); err == nil {
+			fmt.Println(green(">> yt-dlp updated successfully via winget."))
+			return
+		}
+	}
+
+	die("Failed to update yt-dlp. You can update manually with: winget upgrade yt-dlp.yt-dlp")
+}
+
+func checkYTDLPAge(configRoot string) {
+	checkFile := filepath.Join(configRoot, "vampytd", ".last_update_check")
+	if info, err := os.Stat(checkFile); err == nil {
+		if time.Since(info.ModTime()) < 7*24*time.Hour {
+			return
+		}
+	}
+
+	// Record check timestamp
+	_ = os.MkdirAll(filepath.Dir(checkFile), 0755)
+	_ = os.WriteFile(checkFile, []byte(time.Now().Format(time.RFC3339)), 0644)
+
+	out, err := exec.Command(ytdlp, "--version").Output()
+	if err != nil || len(out) == 0 {
+		return
+	}
+	vStr := strings.TrimSpace(string(out))
+	parts := strings.Split(vStr, ".")
+	if len(parts) >= 3 {
+		dateStr := fmt.Sprintf("%s.%s.%s", parts[0], parts[1], parts[2])
+		if vDate, err := time.Parse("2006.01.02", dateStr); err == nil {
+			if time.Since(vDate) > 30*24*time.Hour {
+				fmt.Println(yellow(fmt.Sprintf(">> [Notice] Your yt-dlp version (%s) is older than 30 days. Run 'ytd -U' to update.", vStr)))
+			}
+		}
+	}
+}
+
 func die(msg string) {
 	fmt.Fprintln(os.Stderr, red("Error: ")+msg)
+	if isSpawned {
+		fmt.Fprintln(os.Stderr, yellow("\nPress Enter to close this window..."))
+		bufio.NewReader(os.Stdin).ReadBytes('\n')
+	}
 	os.Exit(1)
 }
 
@@ -242,11 +334,15 @@ func matchesCodec(vcodec, reqCodec string) bool {
 // ARGUMENT PARSING
 // ==============================================================================
 
-func parseArgs() (quickMode bool, quickOptions string, trimMode, useCookies bool, startTime, endTime, url string) {
+func parseArgs() (updateMode bool, quickMode bool, quickOptions string, trimMode, useCookies bool, startTime, endTime, url string) {
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
+		case arg == "-U" || arg == "--update" || arg == "--upgrade":
+			updateMode = true
+		case arg == "--spawned":
+			isSpawned = true
 		case arg == "-q" || arg == "--quick":
 			quickMode = true
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !strings.HasPrefix(args[i+1], "http") {
@@ -274,6 +370,7 @@ func parseArgs() (quickMode bool, quickOptions string, trimMode, useCookies bool
 			fmt.Println(`  -q [opts] : Quick Mode (e.g. -q 1080p,av1). Leave empty for fastest default max-quality download.`)
 			fmt.Println(`  -c        : Enable Cookies (Auto selects file)`)
 			fmt.Println(`  -t        : Trim Mode (e.g. -t 8:20 12:20)`)
+			fmt.Println(`  -U        : Update yt-dlp to latest version`)
 			os.Exit(0)
 		default:
 			if strings.HasPrefix(arg, "http") {
@@ -902,7 +999,14 @@ func main() {
 	cookiesJHS = filepath.Join(configRoot, "vampytd", "cookies-jhs.txt")
 	downloadDir = filepath.Join(home, "Downloads", "VampYTD")
 
-	quickMode, quickOptions, trimMode, useCookies, startTime, endTime, url := parseArgs()
+	quickMode, quickOptions, trimMode, useCookies, startTime, endTime, url := func() (bool, string, bool, bool, string, string, string) {
+		up, qm, qo, tm, uc, st, et, u := parseArgs()
+		if up {
+			runUpdate()
+			os.Exit(0)
+		}
+		return qm, qo, tm, uc, st, et, u
+	}()
 
 	if strings.TrimSpace(url) == "" {
 		die("No URL provided.")
@@ -942,6 +1046,8 @@ func main() {
 	if !commandExists("node") {
 		die("Node.js is required by the configured yt-dlp JavaScript runtime and was not found in PATH.")
 	}
+
+	checkYTDLPAge(configRoot)
 
 	fmt.Println(dkCyan("=== VampYTD ==="))
 	fmt.Println(cyan(">> Target: " + url))
@@ -1066,4 +1172,7 @@ func main() {
 	}
 
 	fmt.Println(green(">> Done! Files are in " + downloadDir))
+	if isSpawned {
+		showToast("VampYTD Download Complete", "Video saved to "+downloadDir)
+	}
 }

@@ -170,7 +170,7 @@ func TestNativeHostProcessesDownloadRequest(t *testing.T) {
 	if !response.OK || response.Error != "" {
 		t.Fatalf("unexpected native response: %#v", response)
 	}
-	want := []string{"-q", "1080p,av1", "https://www.youtube.com/watch?v=abc"}
+	want := []string{"-q", "1080p,av1", "--spawned", "https://www.youtube.com/watch?v=abc"}
 	if len(gotArgs) != len(want) {
 		t.Fatalf("launcher args = %#v, want %#v", gotArgs, want)
 	}
@@ -274,3 +274,42 @@ func TestPowerShellSingleQuoteEscapesApostrophes(t *testing.T) {
 		t.Fatalf("powershellSingleQuote() = %q, want %q", got, want)
 	}
 }
+
+func TestMozillaManifestStructure(t *testing.T) {
+	manifest := MozillaNativeHostManifest{
+		Name:              nativeHostName,
+		Description:       "VampYTD browser integration",
+		Path:              `C:\Program Files\VampYTD\bridge.exe`,
+		Type:              "stdio",
+		AllowedExtensions: []string{firefoxExtensionID},
+	}
+	data, err := json.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(data, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	exts, ok := decoded["allowed_extensions"].([]any)
+	if !ok || len(exts) != 1 || exts[0] != firefoxExtensionID {
+		t.Fatalf("allowed_extensions = %#v, want [%s]", decoded["allowed_extensions"], firefoxExtensionID)
+	}
+	if decoded["name"] != nativeHostName {
+		t.Fatalf("name = %v, want %s", decoded["name"], nativeHostName)
+	}
+}
+
+func TestMozillaManifestPaths(t *testing.T) {
+	paths, err := mozillaManifestPaths()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(paths) == 0 {
+		t.Fatal("expected at least one mozilla manifest path")
+	}
+	if !strings.HasSuffix(paths[0], ".json") {
+		t.Fatalf("expected path to end in .json, got: %s", paths[0])
+	}
+}
+

@@ -7,14 +7,19 @@ VampYTD is a Windows-first video downloader with a Chromium browser extension. I
 1. Download the Windows ZIP from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
 2. Extract the complete ZIP archive.
 3. Double-click `Install-VampYTD.cmd`.
-4. Open your browser extensions page (`chrome://extensions`, `edge://extensions`, or `brave://extensions`), enable **Developer mode**, click **Load unpacked**, and paste/select the extension folder (path auto-copied to clipboard).
+4. Activate the extension in your browser:
+   - **Chrome / Edge / Brave / Vivaldi**: Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, click **Load unpacked**, and paste/select the extension folder (path auto-copied to clipboard).
+   - **Firefox**:
+     - *Method 1 (All versions - Developer / Temporary)*: Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on...**, and select `manifest.json` inside `%LOCALAPPDATA%\VampYTD\VampYTDExtension-Firefox`.
+     - *Method 2 (Dev Edition / ESR / Unbranded)*: Open `about:addons`, click the gear icon, click **Install Add-on From File...**, and select `%LOCALAPPDATA%\VampYTD\VampYTD-Extension.xpi` (requires `xpinstall.signatures.required=false` in `about:config`).
 
 The double-click installer:
 
 - installs missing `yt-dlp`, FFmpeg, Node.js, and FZF packages automatically via Windows Package Manager (`winget`);
 - installs VampYTD under `%LOCALAPPDATA%\VampYTD`;
+- packages `VampYTD-Extension.xpi` and `VampYTD-Extension.zip` for Firefox;
 - adds the `ytd` command-line downloader to your user `PATH`;
-- registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
+- registers native messaging for Chrome, Edge, Chromium, Brave, Vivaldi, and Firefox;
 - copies the unpacked extension folder path directly to your clipboard.
 
 Administrator access is not required. Run `Install-VampYTD.cmd` again at any time to repair or update the installation.
@@ -34,20 +39,20 @@ The installer sets up dependencies automatically via Windows Package Manager (`w
 | Node.js | Yes | Yes (`OpenJS.NodeJS.LTS`) | JavaScript runtime used by `yt-dlp` |
 | FZF | Optional | Yes (`junegunn.fzf`) | Enhanced interactive format picker (falls back to numbered lists if missing) |
 
-Keep `yt-dlp` current (`yt-dlp -U` or `winget upgrade yt-dlp.yt-dlp`) as video site extractors update frequently.
+Keep `yt-dlp` current (`ytd -U`, `yt-dlp -U`, or `winget upgrade yt-dlp.yt-dlp`) as video site extractors update frequently. VampYTD also checks for updates periodically and displays a notice if `yt-dlp` is older than 30 days.
 
 ## Browser extension
 
-The Chromium extension features:
+The extension features:
 
 - a right-click context menu to send videos directly to VampYTD;
 - an embedded **Download with VampYTD** button on YouTube video pages;
 - customizable download mode (interactive vs quick options), codec preference, and cookie toggle;
 - a diagnostic dashboard verifying native messaging, dependencies, and download location.
 
-Chromium native messaging launches the bridge process on demand with zero permanent background tasks, startup shortcuts, or listening network ports.
+Native messaging launches the bridge process on demand with zero permanent background tasks, startup shortcuts, or listening network ports.
 
-The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd`.
+The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd` (Chromium) and `vampytd@vampdued.github.io` (Firefox).
 
 ## Command-line usage
 
@@ -67,6 +72,9 @@ ytd -t 01:20 02:45 "URL"
 
 # Use site-specific cookie file
 ytd -c "URL"
+
+# Update yt-dlp to the latest release
+ytd -U
 ```
 
 Downloads are saved under `%USERPROFILE%\Downloads\VampYTD`. Optional cookie files are stored under `%APPDATA%\vampytd`:

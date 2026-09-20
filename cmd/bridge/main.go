@@ -33,8 +33,9 @@ type Payload struct {
 const maxRequestBody = 64 * 1024
 
 const (
-	nativeHostName  = "com.vampytd.bridge"
-	extensionOrigin = "chrome-extension://jjacbochmpbgpfpbfclmileocddkncgd/"
+	nativeHostName     = "com.vampytd.bridge"
+	extensionOrigin    = "chrome-extension://jjacbochmpbgpfpbfclmileocddkncgd/"
+	firefoxExtensionID = "vampytd@vampdued.github.io"
 )
 
 var diagnosticWriter io.Writer = os.Stdout
@@ -224,6 +225,14 @@ type NativeHostManifest struct {
 	AllowedOrigins []string `json:"allowed_origins"`
 }
 
+type MozillaNativeHostManifest struct {
+	Name              string   `json:"name"`
+	Description       string   `json:"description"`
+	Path              string   `json:"path"`
+	Type              string   `json:"type"`
+	AllowedExtensions []string `json:"allowed_extensions"`
+}
+
 func allowedOrigin(origin string) bool {
 	if configured := strings.TrimSpace(os.Getenv("VAMPYTD_ALLOWED_ORIGIN")); configured != "" {
 		return origin == configured
@@ -325,7 +334,7 @@ func processPayload(p Payload) error {
 			ytdArgs = append(ytdArgs, "-q")
 		}
 	}
-	ytdArgs = append(ytdArgs, p.URL)
+	ytdArgs = append(ytdArgs, "--spawned", p.URL)
 	return launchDownloader(ytdPath, ytdArgs)
 }
 
@@ -601,6 +610,31 @@ func nativeManifestPaths() ([]string, error) {
 	}
 }
 
+func mozillaManifestPaths() ([]string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	name := nativeHostName + ".json"
+	switch runtime.GOOS {
+	case "windows":
+		executable, err := os.Executable()
+		if err != nil {
+			return nil, err
+		}
+		return []string{filepath.Join(filepath.Dir(executable), nativeHostName+".firefox.json")}, nil
+	case "darwin":
+		base := filepath.Join(home, "Library", "Application Support")
+		return []string{
+			filepath.Join(base, "Mozilla", "NativeMessagingHosts", name),
+		}, nil
+	default:
+		return []string{
+			filepath.Join(home, ".mozilla", "native-messaging-hosts", name),
+		}, nil
+	}
+}
+
 func installNativeHost() error {
 	executable, err := os.Executable()
 	if err != nil {
@@ -634,6 +668,32 @@ func installNativeHost() error {
 			return err
 		}
 	}
+
+	mozManifest := MozillaNativeHostManifest{
+		Name:              nativeHostName,
+		Description:       "VampYTD browser integration",
+		Path:              executable,
+		Type:              "stdio",
+		AllowedExtensions: []string{firefoxExtensionID},
+	}
+	mozBody, err := json.MarshalIndent(mozManifest, "", "  ")
+	if err != nil {
+		return err
+	}
+	mozBody = append(mozBody, '\n')
+	mozPaths, err := mozillaManifestPaths()
+	if err != nil {
+		return err
+	}
+	for _, path := range mozPaths {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(path, mozBody, 0644); err != nil {
+			return err
+		}
+	}
+
 	if runtime.GOOS == "windows" {
 		registries := []string{
 			`HKCU\Software\Google\Chrome\NativeMessagingHosts\` + nativeHostName,
@@ -648,8 +708,14 @@ func installNativeHost() error {
 				return fmt.Errorf("registering %s: %w: %s", key, err, strings.TrimSpace(string(output)))
 			}
 		}
+
+		mozKey := `HKCU\Software\Mozilla\NativeMessagingHosts\` + nativeHostName
+		cmd := exec.Command("reg.exe", "add", mozKey, "/ve", "/t", "REG_SZ", "/d", mozPaths[0], "/f")
+		if output, err := cmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("registering %s: %w: %s", mozKey, err, strings.TrimSpace(string(output)))
+		}
 	}
-	fmt.Printf("Registered native messaging host %s for extension %s\n", nativeHostName, extensionOrigin)
+	fmt.Printf("Registered native messaging host %s for extension %s and Firefox\n", nativeHostName, extensionOrigin)
 	return nil
 }
 
@@ -663,6 +729,14 @@ func uninstallNativeHost() error {
 			return err
 		}
 	}
+	mozPaths, err := mozillaManifestPaths()
+	if err == nil {
+		for _, path := range mozPaths {
+			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+				return err
+			}
+		}
+	}
 	if runtime.GOOS == "windows" {
 		registries := []string{
 			`HKCU\Software\Google\Chrome\NativeMessagingHosts\` + nativeHostName,
@@ -670,6 +744,7 @@ func uninstallNativeHost() error {
 			`HKCU\Software\Chromium\NativeMessagingHosts\` + nativeHostName,
 			`HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\` + nativeHostName,
 			`HKCU\Software\Vivaldi\NativeMessagingHosts\` + nativeHostName,
+			`HKCU\Software\Mozilla\NativeMessagingHosts\` + nativeHostName,
 		}
 		for _, key := range registries {
 			_ = exec.Command("reg.exe", "delete", key, "/f").Run()

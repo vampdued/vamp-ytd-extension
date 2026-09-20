@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 func intPtr(value int) *int             { return &value }
 func int64Ptr(value int64) *int64       { return &value }
@@ -53,3 +56,42 @@ func TestProcessFormatsFiltersMetadataOnlyEntries(t *testing.T) {
 		t.Fatalf("unexpected filtered formats: %#v", formats)
 	}
 }
+
+func TestParseArgsUpdateAndSpawnedFlags(t *testing.T) {
+	oldArgs := os.Args
+	defer func() { os.Args = oldArgs }()
+
+	// Test -U
+	os.Args = []string{"ytd", "-U"}
+	up, _, _, _, _, _, _, _ := parseArgs()
+	if !up {
+		t.Errorf("expected updateMode true for -U")
+	}
+
+	// Test --update
+	os.Args = []string{"ytd", "--update"}
+	up, _, _, _, _, _, _, _ = parseArgs()
+	if !up {
+		t.Errorf("expected updateMode true for --update")
+	}
+
+	// Test --spawned
+	isSpawned = false
+	os.Args = []string{"ytd", "--spawned", "https://youtube.com/watch?v=123"}
+	_, _, _, _, _, _, _, u := parseArgs()
+	if !isSpawned {
+		t.Errorf("expected isSpawned true for --spawned")
+	}
+	if u != "https://youtube.com/watch?v=123" {
+		t.Errorf("expected url %q, got %q", "https://youtube.com/watch?v=123", u)
+	}
+}
+
+func TestEncodePowerShellCommand(t *testing.T) {
+	cmd := "Write-Host 'Hello'"
+	encoded := encodePowerShellCommand(cmd)
+	if encoded == "" {
+		t.Fatal("expected non-empty base64 string")
+	}
+}
+

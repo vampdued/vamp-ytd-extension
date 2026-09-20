@@ -12,6 +12,7 @@ dist/
 build/
 out/
 run/
+com.vampytd.bridge*.json
 
 # Logs
 *.log

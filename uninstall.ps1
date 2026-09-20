@@ -26,7 +26,8 @@ $registryRoots = @(
     "HKCU:\Software\Microsoft\Edge\NativeMessagingHosts",
     "HKCU:\Software\Chromium\NativeMessagingHosts",
     "HKCU:\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts",
-    "HKCU:\Software\Vivaldi\NativeMessagingHosts"
+    "HKCU:\Software\Vivaldi\NativeMessagingHosts",
+    "HKCU:\Software\Mozilla\NativeMessagingHosts"
 )
 foreach ($root in $registryRoots) {
     $registration = Join-Path $root $NativeHostName
