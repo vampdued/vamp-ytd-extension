@@ -112,20 +112,19 @@ jobs:
           Get-ChildItem dist
 
       - name: Publish Release via GitHub CLI
-        shell: powershell
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          $tag = $env:TARGET_TAG
-          $zipFile = "dist\VampYTD_${tag}_windows_amd64.zip"
-          $setupFile = "VampYTD-Setup.exe"
-          $checksumsFile = "dist\checksums.txt"
+          tag="${TARGET_TAG}"
+          zipFile="dist/VampYTD_${tag}_windows_amd64.zip"
+          setupFile="VampYTD-Setup.exe"
+          checksumsFile="dist/checksums.txt"
 
-          gh release view "$tag" 2>$null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Updating release $tag with compiled assets..."
-            gh release upload "$tag" $setupFile $zipFile $checksumsFile --clobber
-          } else {
-            Write-Host "Creating release $tag..."
-            gh release create "$tag" $setupFile $zipFile $checksumsFile --title "VampYTD $tag" --generate-notes
-          }
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Updating existing release $tag with compiled assets..."
+            gh release upload "$tag" "$setupFile" "$zipFile" "$checksumsFile" --clobber
+          else
+            echo "Creating release $tag..."
+            gh release create "$tag" "$setupFile" "$zipFile" "$checksumsFile" --title "VampYTD $tag" --generate-notes
+          fi
