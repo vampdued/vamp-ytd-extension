@@ -1,6 +1,24 @@
-# VampYTD
+<p align="center">
+  <img src="VampYTDExtension/icons/logo.png" alt="VampYTD Logo" width="420">
+</p>
 
-VampYTD is a Windows-first video downloader with a Chromium browser extension. It uses `yt-dlp` for extraction, FFmpeg for merging and trimming, and an optional FZF interface for choosing streams.
+<p align="center">
+  <b>Windows-first, lightning-fast video downloader with pure Native Messaging browser integration.</b>
+</p>
+
+---
+
+VampYTD is a Windows-first video downloader with a companion browser extension for Chromium and Firefox. It uses `yt-dlp` for extraction, FFmpeg for merging and trimming, and an optional FZF interface for choosing streams.
+
+## Features at a glance
+
+- ⚡ **Pure Native Messaging**: Launches the bridge process on demand with zero permanent background services, zero open network ports, and zero host permissions.
+- 🎬 **In-Page YouTube Integration**: Embedded download buttons on both regular YouTube watch pages and vertical **YouTube Shorts** (`#actions` rail).
+- 📌 **Active Video Detection Card**: Extension popup automatically detects the video playing in your active tab (YouTube / JioHotstar) with one-click downloading.
+- 🔔 **Instant Visual Feedback**: Toolbar badge status indicators (`✓` / `ERR`) and non-intrusive floating in-page toast alerts on context-menu downloads.
+- 🎛 **Format & Codec Preferences**: Quick-download presets (Interactive, Quick Max, 1080p, 4K) and codec selection (Auto, AV1, VP9, HEVC/H.265, H.264).
+- 🍪 **Seamless Cookie Support**: Toggle site-specific authentication cookies (`cookies-yt.txt`, `cookies-jhs.txt`) directly from the popup for members-only or age-restricted content.
+- ♿ **WCAG 2.1 AA Accessible UI**: Full keyboard arrow navigation, focus indicators, and ARIA roles with a sleek zero-footer dark design.
 
 ## Simple Windows installation
 
@@ -45,10 +63,11 @@ Keep `yt-dlp` current (`ytd -U`, `yt-dlp -U`, or `winget upgrade yt-dlp.yt-dlp`)
 
 The extension features:
 
-- a right-click context menu to send videos directly to VampYTD;
-- an embedded **Download with VampYTD** button on YouTube video pages;
-- customizable download mode (interactive vs quick options), codec preference, and cookie toggle;
-- a diagnostic dashboard verifying native messaging, dependencies, and download location.
+- a right-click context menu to send videos or links directly to VampYTD with instant toolbar badge and floating toast confirmation;
+- embedded **Download with VampYTD** buttons on YouTube video watch pages and YouTube Shorts;
+- an **Active Video Card** in the popup to download the currently playing video with one click;
+- customizable download mode (interactive vs quick presets), codec preferences (AV1, VP9, HEVC, H.264), and cookie toggles;
+- a diagnostic dashboard verifying native messaging host connectivity, tool dependencies, and the target download folder.
 
 Native messaging launches the bridge process on demand with zero permanent background tasks, startup shortcuts, or listening network ports.
 
@@ -66,6 +85,7 @@ ytd -q "URL"
 # Resolution and codec constraints
 ytd -q 1080p "URL"
 ytd -q 4k,av1 "URL"
+ytd -q 4k,hevc "URL"
 
 # Lossless section trim
 ytd -t 01:20 02:45 "URL"
@@ -117,7 +137,7 @@ To specifically install FZF via winget during manual setup:
 ./deploy.ps1 -InstallFZF
 ```
 
-Building from source requires Go 1.26.2 or newer:
+Building from source requires Go 1.22 or newer:
 
 ```powershell
 go test ./...
@@ -130,7 +150,7 @@ go build -o bridge.exe ./cmd/bridge
 ```text
 cmd/ytd/            downloader command-line application
 cmd/bridge/         native messaging bridge for browser integration
-VampYTDExtension/   Chromium Manifest V3 browser extension
+VampYTDExtension/   Chromium & Firefox Manifest V3 browser extension
 Install-VampYTD.cmd double-click Windows installer wrapper
 Uninstall-VampYTD.cmd double-click Windows uninstaller wrapper
 deploy.ps1          PowerShell installation and dependency logic
@@ -141,7 +161,6 @@ spec.md             downloader technical specification
 
 ## Release process
 
-Windows AMD64 and ARM64 ZIP archives are generated automatically upon pushing a semantic version tag (e.g. `v1.3.0`).
+Windows AMD64 and ARM64 ZIP archives are generated automatically upon pushing a semantic version tag (e.g. `v1.4.0`).
 
 VampYTD is released under the [MIT License](LICENSE).
-

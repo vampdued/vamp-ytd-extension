@@ -17,6 +17,8 @@
       --warning: #fbbf24;
       --error: #fb7185;
       --accent: #a78bfa;
+      --accent-hover: #bfa8ff;
+      --accent-bg: #2a2340;
     }
 
     * { box-sizing: border-box; }
@@ -28,7 +30,7 @@
       overflow-y: auto;
       background: var(--bg);
       color: var(--text);
-      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     .shell { padding: 16px; }
@@ -41,10 +43,38 @@
       margin-bottom: 14px;
     }
 
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .brand img { width: 32px; height: 32px; }
-    .brand-name { display: block; font-size: 16px; font-weight: 700; }
-    .brand-version { color: var(--muted); font-size: 11px; }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+
+    .brand-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .brand-logo {
+      height: 20px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .brand-version {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 500;
+    }
 
     .overall-status {
       display: inline-flex;
@@ -56,6 +86,7 @@
       color: var(--muted);
       font-size: 11px;
       font-weight: 600;
+      user-select: none;
     }
 
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
@@ -83,8 +114,11 @@
       cursor: pointer;
       font: inherit;
       font-weight: 600;
+      transition: background 0.15s, color 0.15s;
     }
 
+    .tab:hover { color: var(--text); }
+    .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
     .tab.active { background: var(--surface-2); color: var(--text); }
     .panel[hidden] { display: none; }
 
@@ -105,6 +139,63 @@
       text-transform: uppercase;
     }
 
+    /* Active Video Card */
+    .active-video-body {
+      padding: 0 12px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .active-video-title {
+      font-weight: 600;
+      font-size: 12px;
+      color: var(--text);
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .active-video-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .site-badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #dc2626;
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .site-badge.hotstar { background: #0284c7; }
+
+    .active-download-btn {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #059669;
+      border-radius: 8px;
+      background: #064e3b;
+      color: #ecfdf5;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 650;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .active-download-btn:hover { background: #047857; border-color: #10b981; }
+    .active-download-btn:focus-visible { outline: 2px solid #34d399; }
+    .active-download-btn:disabled { opacity: 0.6; cursor: wait; }
+
     .health-row {
       display: flex;
       align-items: center;
@@ -117,9 +208,9 @@
 
     .health-label { font-weight: 500; }
     .health-value { color: var(--muted); font-size: 11px; text-align: right; }
-    .health-value.good { color: var(--success); }
+    .health-value.good { color: var(--success); font-weight: 600; }
     .health-value.warn { color: var(--warning); }
-    .health-value.bad  { color: var(--error); }
+    .health-value.bad  { color: var(--error); font-weight: 600; }
 
     .folder {
       display: block;
@@ -134,19 +225,21 @@
       padding: 10px 12px;
       border: 1px solid #6d5ea9;
       border-radius: 9px;
-      background: #2a2340;
+      background: var(--accent-bg);
       color: #eee9ff;
       cursor: pointer;
       font: inherit;
       font-weight: 650;
+      transition: background 0.15s;
     }
 
     .test-button:hover    { background: #352b51; }
+    .test-button:focus-visible { outline: 2px solid var(--accent); }
     .test-button:disabled { cursor: wait; opacity: .65; }
     .checked-time { margin: 7px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
 
     .setting-card  { padding: 12px; }
-    .setting-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
+    .setting-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
 
     .options { display: grid; gap: 5px; }
     .option {
@@ -158,29 +251,32 @@
       border-radius: 8px;
       color: var(--muted);
       cursor: pointer;
+      transition: background 0.12s, color 0.12s;
     }
 
     .option:hover  { background: var(--surface-2); color: var(--text); }
-    .option.active { border-color: #514474; background: #282238; color: var(--text); }
+    .option:focus-visible { outline: 2px solid var(--accent); }
+    .option.active { border-color: #514474; background: #282238; color: var(--text); font-weight: 500; }
     .option-meta   { font-size: 10px; color: var(--muted); }
 
-    .toggle-row         { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-row          { display: flex; align-items: center; justify-content: space-between; }
     .setting-description { color: var(--muted); font-size: 11px; }
-    .switch   { position: relative; width: 38px; height: 22px; }
+    .switch   { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider   { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; }
+    .slider   { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; transition: background .18s; }
     .slider::before { content: ""; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: #a5aab4; transition: .18s; }
     .switch input:checked + .slider             { background: #66538e; }
     .switch input:checked + .slider::before     { transform: translateX(16px); background: white; }
+    .switch input:focus-visible + .slider       { outline: 2px solid var(--accent); }
   </style>
 </head>
 <body>
   <div class="shell">
     <header>
       <div class="brand">
-        <img src="icons/icon32.png" alt="">
-        <div>
-          <span class="brand-name">VampYTD</span>
+        <img src="icons/icon32.png" alt="VampYTD Icon" class="brand-icon">
+        <div class="brand-text">
+          <img src="icons/logo.png" alt="VampYTD" class="brand-logo">
           <span class="brand-version" id="version-text"></span>
         </div>
       </div>
@@ -190,13 +286,27 @@
       </div>
     </header>
 
-    <nav class="tabs" aria-label="Popup sections">
-      <button class="tab active" type="button" data-panel="status-panel">Status</button>
-      <button class="tab"        type="button" data-panel="settings-panel">Settings</button>
+    <nav class="tabs" role="tablist" aria-label="Popup sections">
+      <button class="tab active" type="button" role="tab" id="tab-status" aria-selected="true" aria-controls="status-panel" data-panel="status-panel">Status</button>
+      <button class="tab" type="button" role="tab" id="tab-settings" aria-selected="false" aria-controls="settings-panel" data-panel="settings-panel">Settings</button>
     </nav>
 
     <main>
-      <section class="panel" id="status-panel">
+      <section class="panel" id="status-panel" role="tabpanel" aria-labelledby="tab-status">
+        <!-- Active Video Card (visible when on a supported site) -->
+        <div class="card active-video-card" id="active-video-card" hidden>
+          <div class="card-title">Active Video</div>
+          <div class="active-video-body">
+            <div class="active-video-title" id="active-video-title">Detecting video…</div>
+            <div class="active-video-meta">
+              <span class="site-badge" id="active-video-badge">YouTube</span>
+            </div>
+            <button class="active-download-btn" type="button" id="active-download-btn">
+              Download with VampYTD
+            </button>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-title">Connection</div>
           <div class="health-row">
@@ -223,24 +333,25 @@
         <div class="checked-time" id="checked-time" aria-live="polite"></div>
       </section>
 
-      <section class="panel" id="settings-panel" hidden>
+      <section class="panel" id="settings-panel" role="tabpanel" aria-labelledby="tab-settings" hidden>
         <div class="card setting-card">
-          <h2 class="setting-title">Download mode</h2>
-          <div class="options" id="mode-selector">
-            <div class="option" data-mode="interactive"><span>Interactive</span><span class="option-meta">Format menu</span></div>
-            <div class="option" data-mode="quick-max"><span>Quick Max</span><span class="option-meta">Best quality</span></div>
-            <div class="option" data-mode="quick-1080p"><span>Quick 1080p</span><span class="option-meta">Full HD</span></div>
-            <div class="option" data-mode="quick-4k"><span>Quick 4K</span><span class="option-meta">Ultra HD</span></div>
+          <h2 class="setting-title" id="mode-label">Download mode</h2>
+          <div class="options" id="mode-selector" role="radiogroup" aria-labelledby="mode-label">
+            <div class="option" data-mode="interactive" role="radio" aria-checked="false" tabindex="0"><span>Interactive</span><span class="option-meta">Format menu</span></div>
+            <div class="option" data-mode="quick-max" role="radio" aria-checked="false" tabindex="-1"><span>Quick Max</span><span class="option-meta">Best quality</span></div>
+            <div class="option" data-mode="quick-1080p" role="radio" aria-checked="false" tabindex="-1"><span>Quick 1080p</span><span class="option-meta">Full HD</span></div>
+            <div class="option" data-mode="quick-4k" role="radio" aria-checked="false" tabindex="-1"><span>Quick 4K</span><span class="option-meta">Ultra HD</span></div>
           </div>
         </div>
 
         <div class="card setting-card">
-          <h2 class="setting-title">Preferred codec</h2>
-          <div class="options" id="codec-selector">
-            <div class="option" data-codec="auto"><span>Auto</span><span class="option-meta">Best match</span></div>
-            <div class="option" data-codec="av1"><span>AV1</span><span class="option-meta">High efficiency</span></div>
-            <div class="option" data-codec="vp9"><span>VP9 / HEVC</span><span class="option-meta">Balanced</span></div>
-            <div class="option" data-codec="h264"><span>H264</span><span class="option-meta">Compatibility</span></div>
+          <h2 class="setting-title" id="codec-label">Preferred codec</h2>
+          <div class="options" id="codec-selector" role="radiogroup" aria-labelledby="codec-label">
+            <div class="option" data-codec="auto" role="radio" aria-checked="false" tabindex="0"><span>Auto</span><span class="option-meta">Best match</span></div>
+            <div class="option" data-codec="av1" role="radio" aria-checked="false" tabindex="-1"><span>AV1</span><span class="option-meta">High efficiency</span></div>
+            <div class="option" data-codec="vp9" role="radio" aria-checked="false" tabindex="-1"><span>VP9</span><span class="option-meta">WebM / YouTube</span></div>
+            <div class="option" data-codec="hevc" role="radio" aria-checked="false" tabindex="-1"><span>HEVC</span><span class="option-meta">H.265</span></div>
+            <div class="option" data-codec="h264" role="radio" aria-checked="false" tabindex="-1"><span>H264</span><span class="option-meta">Compatibility</span></div>
           </div>
         </div>
 
@@ -250,7 +361,7 @@
             <div class="setting-description">Include the configured cookie file</div>
           </div>
           <label class="switch">
-            <input type="checkbox" id="cookies-toggle">
+            <input type="checkbox" id="cookies-toggle" aria-label="Load cookies">
             <span class="slider"></span>
           </label>
         </div>

@@ -3,35 +3,47 @@ const downloadIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 
 const checkIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 -960 960 960" width="24" fill="currentColor"><path d="M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z"/></svg>`;
 
-// --- Utility: Trigger Download & Animate Button ---
-function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
+// --- Utility: Trigger Download & Animate Button with Watchdog ---
+function triggerDownload(url, buttonElement, originalContent, isShorts) {
     if (buttonElement.dataset.vampytdBusy === 'true') return;
     buttonElement.dataset.vampytdBusy = 'true';
 
+    let settled = false;
+
+    // 10s Watchdog: Ensure the button state resets even if the extension context disconnects.
+    const watchdogTimer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        showResult(false, 'Timed out');
+    }, 10_000);
+
     const showResult = (succeeded, label) => {
-        if (isThumbnail) {
+        if (isShorts) {
             buttonElement.innerHTML = succeeded ? checkIconSvg : downloadIconSvg;
-            buttonElement.style.backgroundColor = succeeded ? '#4CAF50' : '#ef4444';
+            buttonElement.style.backgroundColor = succeeded ? '#10b981' : '#ef4444';
             buttonElement.style.transform = 'scale(1.1)';
         } else {
             buttonElement.innerHTML = createWatchButtonContent(succeeded ? checkIconSvg : downloadIconSvg, label);
             buttonElement.style.color = '#fff';
-            buttonElement.style.backgroundColor = succeeded ? '#4CAF50' : '#ef4444';
+            buttonElement.style.backgroundColor = succeeded ? '#10b981' : '#ef4444';
         }
 
         setTimeout(() => {
             buttonElement.innerHTML = originalContent;
             buttonElement.style.backgroundColor = '';
             buttonElement.style.color = '';
-            if (isThumbnail) buttonElement.style.transform = '';
+            if (isShorts) buttonElement.style.transform = '';
             delete buttonElement.dataset.vampytdBusy;
         }, 2000);
     };
 
     try {
         chrome.runtime.sendMessage({ action: 'download', url }, (response) => {
-            const runtimeError = chrome.runtime.lastError;
+            if (settled) return;
+            settled = true;
+            clearTimeout(watchdogTimer);
 
+            const runtimeError = chrome.runtime.lastError;
             if (runtimeError) {
                 const needsReload = runtimeError.message?.toLowerCase().includes('context invalidated');
                 showResult(false, needsReload ? 'Reload page' : 'Extension error');
@@ -42,6 +54,10 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
             showResult(succeeded, succeeded ? 'Sent' : 'Bridge offline');
         });
     } catch (error) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(watchdogTimer);
+
         const needsReload = error instanceof Error && error.message.toLowerCase().includes('context invalidated');
         showResult(false, needsReload ? 'Reload page' : 'Extension error');
     }
@@ -55,10 +71,10 @@ function injectWatchPageButton() {
 
     if (!menuContainer) return;
 
-    // Avoid duplicate injection into the same live container.
+    // Avoid duplicate injection into the active container.
     if (menuContainer.querySelector('#vampytd-watch-btn')) return;
 
-    // Remove any orphaned buttons from previous SPA navigations.
+    // Remove any orphaned buttons from previous navigations.
     document.querySelectorAll('#vampytd-watch-btn').forEach((orphan) => {
         if (!menuContainer.contains(orphan)) orphan.remove();
     });
@@ -66,10 +82,11 @@ function injectWatchPageButton() {
     const buttonModel = document.createElement('yt-button-view-model');
     buttonModel.id = 'vampytd-watch-btn';
     buttonModel.className = 'ytd-menu-renderer';
-    buttonModel.style.marginRight = '8px';
+    // Use logical marginInlineEnd instead of marginRight for RTL compatibility.
+    buttonModel.style.marginInlineEnd = '8px';
     buttonModel.innerHTML = `
         <button-view-model class="ytSpecButtonViewModelHost style-scope ytd-menu-renderer">
-        <button type="button" class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="" aria-label="Download with VampYTD" aria-disabled="false">
+        <button type="button" class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="Download with VampYTD" aria-label="Download with VampYTD" aria-disabled="false">
             ${createWatchButtonContent(downloadIconSvg, 'VampYTD')}
         </button>
         </button-view-model>`;
@@ -95,9 +112,8 @@ function createWatchButtonContent(icon, label) {
         <yt-light-shape aria-hidden="true" class="contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal"><div class="contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal"></div></yt-light-shape>`;
 }
 
-// --- 2. YouTube Shorts Button ---
+// --- 2. YouTube Shorts In-Page Button ---
 function injectShortsButton() {
-    // The Shorts action panel lives inside ytd-reel-video-renderer (active slide).
     const actionPanel =
         document.querySelector('ytd-reel-video-renderer[is-active] #actions') ||
         document.querySelector('ytd-shorts #actions');
@@ -109,10 +125,9 @@ function injectShortsButton() {
     btn.id = 'vampytd-shorts-btn';
     btn.type = 'button';
     btn.setAttribute('aria-label', 'Download Short with VampYTD');
-    btn.title = 'Download with VampYTD';
+    btn.title = 'Download Short with VampYTD';
     btn.innerHTML = downloadIconSvg;
 
-    // Mirror the visual style of other Shorts action buttons.
     Object.assign(btn.style, {
         display: 'flex',
         alignItems: 'center',
@@ -121,16 +136,16 @@ function injectShortsButton() {
         height: '48px',
         borderRadius: '50%',
         border: 'none',
-        background: 'rgba(255,255,255,0.1)',
-        color: '#fff',
+        background: 'rgba(255, 255, 255, 0.1)',
+        color: '#ffffff',
         cursor: 'pointer',
         margin: '8px 0',
-        backdropFilter: 'blur(4px)',
-        transition: 'background 0.15s'
+        backdropFilter: 'blur(8px)',
+        transition: 'background 0.2s, transform 0.15s'
     });
 
-    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(255,255,255,0.2)'; });
-    btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(255,255,255,0.1)'; });
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(255, 255, 255, 0.22)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(255, 255, 255, 0.1)'; });
 
     const originalContent = downloadIconSvg;
 
@@ -140,11 +155,57 @@ function injectShortsButton() {
         triggerDownload(window.location.href, btn, originalContent, true);
     });
 
-    // Append after the last existing action button.
     actionPanel.appendChild(btn);
 }
 
-// --- Route injection based on current page ---
+// --- 3. Floating In-Page Toast for Background Actions ---
+function showFloatingToast(ok, text) {
+    const existing = document.getElementById('vampytd-floating-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'vampytd-floating-toast';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        border-radius: 999px;
+        background: ${ok ? '#10b981' : '#ef4444'};
+        color: #ffffff;
+        font: 600 13px/1.2 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.45);
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        pointer-events: none;
+    `;
+    toast.textContent = text;
+    document.body.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+    });
+
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        setTimeout(() => toast.remove(), 250);
+    }, 3000);
+}
+
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'toast') {
+        showFloatingToast(msg.ok, msg.message);
+    }
+});
+
+// --- Routing & Lifecycle ---
 function injectForCurrentPage() {
     const path = window.location.pathname;
     if (path === '/watch') {
@@ -154,13 +215,11 @@ function injectForCurrentPage() {
     }
 }
 
-// --- Debounced MutationObserver ---
-// Batching DOM mutations with a short debounce avoids saturating the main
-// thread during heavy YouTube SPA renders (e.g. homepage scroll, feed loads).
+// Debounced observer to prevent main-thread saturation during YouTube dynamic renders
 let debounceTimer = null;
 
 const observer = new MutationObserver(() => {
-    if (debounceTimer !== null) return; // already scheduled
+    if (debounceTimer !== null) return;
     debounceTimer = setTimeout(() => {
         debounceTimer = null;
         injectForCurrentPage();
@@ -169,10 +228,7 @@ const observer = new MutationObserver(() => {
 
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Listen to YouTube's own SPA navigation-complete event for fast, reliable
-// injection without relying solely on DOM mutations after a page change.
 window.addEventListener('yt-navigate-finish', () => {
-    // Cancel any pending debounce and inject immediately after navigation.
     if (debounceTimer !== null) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
@@ -180,5 +236,5 @@ window.addEventListener('yt-navigate-finish', () => {
     injectForCurrentPage();
 });
 
-// Initial injection on script load (handles hard page loads / reloads).
+// Initial injection
 injectForCurrentPage();

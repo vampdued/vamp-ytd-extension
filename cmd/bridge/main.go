@@ -7,17 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
-	"time"
 	"unicode/utf16"
 	"unsafe"
 )
@@ -233,28 +230,6 @@ type MozillaNativeHostManifest struct {
 	AllowedExtensions []string `json:"allowed_extensions"`
 }
 
-func allowedOrigin(origin string) bool {
-	if configured := strings.TrimSpace(os.Getenv("VAMPYTD_ALLOWED_ORIGIN")); configured != "" {
-		return origin == configured
-	}
-	return strings.HasPrefix(origin, "chrome-extension://") ||
-		strings.HasPrefix(origin, "moz-extension://") ||
-		strings.HasPrefix(origin, "extension://")
-}
-
-func applyCORS(w http.ResponseWriter, r *http.Request) bool {
-	origin := r.Header.Get("Origin")
-	if !allowedOrigin(origin) {
-		http.Error(w, "Origin is not allowed", http.StatusForbidden)
-		return false
-	}
-	w.Header().Set("Access-Control-Allow-Origin", origin)
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-	w.Header().Set("Vary", "Origin")
-	return true
-}
-
 func validatePayload(p Payload) error {
 	if p.Action == "ping" {
 		return nil
@@ -338,44 +313,6 @@ func processPayload(p Payload) error {
 	return launchDownloader(ytdPath, ytdArgs)
 }
 
-func handleDownload(w http.ResponseWriter, r *http.Request) {
-	if !applyCORS(w, r) {
-		return
-	}
-
-	// Handle preflight OPTIONS request
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	if r.Method != http.MethodPost {
-		http.Error(w, "Only POST allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	defer r.Body.Close()
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxRequestBody))
-	decoder.DisallowUnknownFields()
-	var p Payload
-	if err := decoder.Decode(&p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		http.Error(w, "request must contain one JSON object", http.StatusBadRequest)
-		return
-	}
-	fmt.Fprintf(diagnosticWriter, "Received download request (URL: %s, Mode: %s, Codec: %s, Cookies: %v)\n", p.URL, p.Mode, p.Codec, p.Cookies)
-	if err := processPayload(p); err != nil {
-		fmt.Println("Error starting script inside terminal:", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-}
-
 func powershellSingleQuote(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
@@ -404,10 +341,7 @@ func encodePowerShellCommand(script string) string {
 	return base64.StdEncoding.EncodeToString(data)
 }
 
-// displayEnv returns the display-related environment variables needed for GUI
-// apps. When the bridge runs as a systemd service its environment is minimal
-// (no DISPLAY / WAYLAND_DISPLAY), so we must forward these explicitly to any
-// child process that opens a window, otherwise Qt calls abort() at startup.
+// displayEnv returns display session environment variables needed for GUI terminal emulators.
 func displayEnv() []string {
 	keys := []string{
 		"DISPLAY",
@@ -434,9 +368,6 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 			return exec.Command(terminalPath, args...).Start()
 		}
 
-		// Start-Process calls CreateProcess directly and therefore does not expose
-		// URLs to cmd.exe metacharacter parsing. EncodedCommand also avoids another
-		// quoting layer when the installation path contains spaces.
 		script := buildWindowsPowerShellScript(ytdPath, ytdArgs)
 		return exec.Command(
 			"powershell.exe",
@@ -456,7 +387,6 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 		return exec.Command("osascript", "-e", script).Start()
 	}
 
-	// On Linux/macOS, scan for terminal emulators
 	terminals := []string{"konsole", "gnome-terminal", "xfce4-terminal", "alacritty", "kitty", "xterm"}
 	var foundTerminal string
 	for _, term := range terminals {
@@ -467,7 +397,6 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 	}
 
 	if foundTerminal == "" {
-		// Fallback: spawn the raw process in the background without terminal wrapper
 		fmt.Fprintln(diagnosticWriter, "No terminal emulator found. Spawning raw background process...")
 		args := append([]string{}, ytdArgs...)
 		cmd := exec.Command(ytdPath, args...)
@@ -479,21 +408,15 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 	var cmdArgs []string
 	switch foundTerminal {
 	case "gnome-terminal":
-		// gnome-terminal -- ytd args...
 		cmdArgs = append([]string{"--", ytdPath}, ytdArgs...)
 	case "kitty":
-		// kitty ytd args...
 		cmdArgs = append([]string{ytdPath}, ytdArgs...)
 	default:
-		// konsole, xfce4-terminal, alacritty, xterm all support -e <cmd> [args]
 		cmdArgs = append([]string{"-e", ytdPath}, ytdArgs...)
 	}
 
 	fmt.Fprintf(diagnosticWriter, "Launching terminal: %s %v\n", foundTerminal, cmdArgs)
 	cmd := exec.Command(foundTerminal, cmdArgs...)
-	// Inherit the current environment and overlay display vars. This ensures
-	// GUI terminals can connect to the display even when the bridge was started
-	// by systemd (which strips session-specific env vars like DISPLAY).
 	cmd.Env = append(os.Environ(), displayEnv()...)
 	return cmd.Start()
 }
@@ -566,9 +489,11 @@ func runNativeHost(reader io.Reader, writer io.Writer) error {
 
 func isNativeInvocation(args []string) bool {
 	if len(args) == 0 {
-		return false
+		return true
 	}
-	return args[0] == "--native-host" || strings.TrimSuffix(args[0], "/") == strings.TrimSuffix(extensionOrigin, "/")
+	return args[0] == "--native-host" ||
+		strings.TrimSuffix(args[0], "/") == strings.TrimSuffix(extensionOrigin, "/") ||
+		args[0] == firefoxExtensionID
 }
 
 func nativeManifestPaths() ([]string, error) {
@@ -754,145 +679,9 @@ func uninstallNativeHost() error {
 	return nil
 }
 
-func handleRoot(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Origin") != "" && !applyCORS(w, r) {
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain")
-	w.Write([]byte("VampYTD Bridge is running correctly! You can close this page."))
-}
-
-func handleDiagnostics(w http.ResponseWriter, r *http.Request) {
-	if !applyCORS(w, r) {
-		return
-	}
-	if r.Method != http.MethodGet {
-		http.Error(w, "Only GET allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(diagnosticResponse())
-}
-
-func installService() {
-	if runtime.GOOS != "linux" {
-		fmt.Println("Automatic bridge service installation is currently supported on Linux only.")
-		return
-	}
-
-	execPath, err := os.Executable()
-	if err != nil {
-		fmt.Printf("Error resolving executable path: %v\n", err)
-		return
-	}
-	execPath, err = filepath.Abs(execPath)
-	if err != nil {
-		fmt.Printf("Error resolving absolute path: %v\n", err)
-		return
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Printf("Error resolving user home directory: %v\n", err)
-		return
-	}
-
-	systemdDir := filepath.Join(home, ".config", "systemd", "user")
-	if err := os.MkdirAll(systemdDir, 0755); err != nil {
-		fmt.Printf("Error creating systemd directories: %v\n", err)
-		return
-	}
-
-	servicePath := filepath.Join(systemdDir, "vampytd-bridge.service")
-
-	// Capture current display session vars at install time so the service
-	// can spawn GUI apps (e.g. konsole) that require a display connection.
-	// Without these, Qt/X11/Wayland will abort with SIGABRT at init_platform().
-	display := os.Getenv("DISPLAY")
-	waylandDisplay := os.Getenv("WAYLAND_DISPLAY")
-	xdgRuntime := os.Getenv("XDG_RUNTIME_DIR")
-	dbusAddr := os.Getenv("DBUS_SESSION_BUS_ADDRESS")
-
-	envLine := ""
-	if display != "" {
-		envLine += fmt.Sprintf("Environment=DISPLAY=%s\n", display)
-	}
-	if waylandDisplay != "" {
-		envLine += fmt.Sprintf("Environment=WAYLAND_DISPLAY=%s\n", waylandDisplay)
-	}
-	if xdgRuntime != "" {
-		envLine += fmt.Sprintf("Environment=XDG_RUNTIME_DIR=%s\n", xdgRuntime)
-	}
-	if dbusAddr != "" {
-		envLine += fmt.Sprintf("Environment=DBUS_SESSION_BUS_ADDRESS=%s\n", dbusAddr)
-	}
-
-	serviceContent := fmt.Sprintf(`[Unit]
-Description=VampYTD Bridge Server
-After=network.target
-
-[Service]
-Type=simple
-ExecStart=%s
-%sRestart=always
-RestartSec=3
-
-[Install]
-WantedBy=default.target
-`, execPath, envLine)
-
-	err = os.WriteFile(servicePath, []byte(serviceContent), 0644)
-	if err != nil {
-		fmt.Printf("Error writing systemd service file: %v\n", err)
-		return
-	}
-	fmt.Printf("Successfully auto-generated service file at: %s\n", servicePath)
-
-	fmt.Println("Registering and starting service with systemctl --user...")
-
-	// 1. systemctl --user daemon-reload
-	cmdReload := exec.Command("systemctl", "--user", "daemon-reload")
-	if err := cmdReload.Run(); err != nil {
-		fmt.Printf("Error reloading systemd user daemon: %v\n", err)
-		return
-	}
-
-	// 2. systemctl --user enable vampytd-bridge.service
-	cmdEnable := exec.Command("systemctl", "--user", "enable", "vampytd-bridge.service")
-	if err := cmdEnable.Run(); err != nil {
-		fmt.Printf("Error enabling vampytd-bridge service: %v\n", err)
-		return
-	}
-
-	// 3. systemctl --user restart vampytd-bridge.service
-	cmdRestart := exec.Command("systemctl", "--user", "restart", "vampytd-bridge.service")
-	if err := cmdRestart.Run(); err != nil {
-		fmt.Printf("Error restarting/starting vampytd-bridge service: %v\n", err)
-		return
-	}
-
-	fmt.Println("VampYTD Bridge user service is now successfully active, enabled and running on login!")
-}
-
 func main() {
 	refreshPATH()
-	if isNativeInvocation(os.Args[1:]) {
-		diagnosticWriter = os.Stderr
-		if err := runNativeHost(os.Stdin, os.Stdout); err != nil {
-			fmt.Fprintln(os.Stderr, "Native host failed:", err)
-			os.Exit(1)
-		}
-		return
-	}
 
-	if len(os.Args) > 1 && (os.Args[1] == "--install" || os.Args[1] == "-i") {
-		installService()
-		return
-	}
 	if len(os.Args) > 1 && os.Args[1] == "--install-native" {
 		if err := installNativeHost(); err != nil {
 			fmt.Fprintln(os.Stderr, "Native host installation failed:", err)
@@ -908,31 +697,9 @@ func main() {
 		return
 	}
 
-	port := 8080
-	if value := os.Getenv("VAMPYTD_PORT"); value != "" {
-		parsed, err := strconv.Atoi(value)
-		if err != nil || parsed < 1 || parsed > 65535 {
-			fmt.Println("Invalid VAMPYTD_PORT; expected a number from 1 to 65535")
-			return
-		}
-		port = parsed
-	}
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/diagnostics", handleDiagnostics)
-	mux.HandleFunc("/", handleRoot)
-	mux.HandleFunc("/download", handleDownload)
-	address := fmt.Sprintf("127.0.0.1:%d", port)
-	server := &http.Server{
-		Addr:              address,
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       30 * time.Second,
-	}
-	fmt.Printf("VampYTD Bridge listening on http://%s\n", address)
-	if err := server.ListenAndServe(); err != nil {
-		fmt.Println("Server failed:", err)
+	diagnosticWriter = os.Stderr
+	if err := runNativeHost(os.Stdin, os.Stdout); err != nil {
+		fmt.Fprintln(os.Stderr, "Native host failed:", err)
+		os.Exit(1)
 	}
 }

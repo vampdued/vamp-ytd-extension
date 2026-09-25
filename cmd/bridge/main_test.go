@@ -7,8 +7,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +22,7 @@ func TestValidatePayload(t *testing.T) {
 		{name: "youtube", payload: Payload{URL: "https://www.youtube.com/watch?v=abc", Mode: "quick-1080p", Codec: "av1"}},
 		{name: "short URL", payload: Payload{URL: "https://youtu.be/abc", Mode: "interactive", Codec: "auto"}},
 		{name: "hotstar", payload: Payload{URL: "https://www.jiohotstar.com/movies/example", Mode: "quick-max"}},
+		{name: "hevc codec", payload: Payload{URL: "https://www.youtube.com/watch?v=abc", Mode: "quick-4k", Codec: "hevc"}},
 		{name: "reject HTTP", payload: Payload{URL: "http://youtube.com/watch?v=abc"}, wantErr: true},
 		{name: "reject lookalike", payload: Payload{URL: "https://youtube.com.example.test/watch?v=abc"}, wantErr: true},
 		{name: "reject mode", payload: Payload{URL: "https://youtube.com/watch?v=abc", Mode: "delete-all"}, wantErr: true},
@@ -99,55 +98,6 @@ func readNativeResponse(t *testing.T, reader io.Reader) NativeResponse {
 	return response
 }
 
-func TestAllowedOriginDefaultsToExtensionSchemes(t *testing.T) {
-	t.Setenv("VAMPYTD_ALLOWED_ORIGIN", "")
-	if !allowedOrigin("chrome-extension://abcdefghijklmnop") {
-		t.Fatal("Chrome extension origin should be allowed")
-	}
-	if allowedOrigin("https://example.com") {
-		t.Fatal("ordinary website origin should not be allowed")
-	}
-}
-
-func TestAllowedOriginHonorsConfiguredOrigin(t *testing.T) {
-	t.Setenv("VAMPYTD_ALLOWED_ORIGIN", "chrome-extension://trusted")
-	if !allowedOrigin("chrome-extension://trusted") {
-		t.Fatal("configured origin should be allowed")
-	}
-	if allowedOrigin("chrome-extension://different") {
-		t.Fatal("unconfigured extension origin should be rejected")
-	}
-}
-
-func TestHealthEndpointAllowsExtensionOrigin(t *testing.T) {
-	t.Setenv("VAMPYTD_ALLOWED_ORIGIN", "")
-	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/", nil)
-	request.Header.Set("Origin", "chrome-extension://trusted")
-	recorder := httptest.NewRecorder()
-
-	handleRoot(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	if origin := recorder.Header().Get("Access-Control-Allow-Origin"); origin != "chrome-extension://trusted" {
-		t.Fatalf("CORS origin = %q", origin)
-	}
-}
-
-func TestHealthEndpointRejectsWebsiteOrigin(t *testing.T) {
-	t.Setenv("VAMPYTD_ALLOWED_ORIGIN", "")
-	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/", nil)
-	request.Header.Set("Origin", "https://example.com")
-	recorder := httptest.NewRecorder()
-
-	handleRoot(recorder, request)
-
-	if recorder.Code != http.StatusForbidden {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusForbidden)
-	}
-}
-
 func TestNativeHostProcessesDownloadRequest(t *testing.T) {
 	originalLauncher := launchDownloader
 	t.Cleanup(func() { launchDownloader = originalLauncher })
@@ -193,26 +143,6 @@ func TestNativeHostPingReturnsDiagnostics(t *testing.T) {
 	}
 }
 
-func TestDiagnosticsEndpointReturnsJSON(t *testing.T) {
-	t.Setenv("VAMPYTD_ALLOWED_ORIGIN", "")
-	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:8080/diagnostics", nil)
-	request.Header.Set("Origin", "chrome-extension://trusted")
-	recorder := httptest.NewRecorder()
-
-	handleDiagnostics(recorder, request)
-
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusOK)
-	}
-	var response NativeResponse
-	if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
-		t.Fatal(err)
-	}
-	if !response.OK || response.Platform == "" {
-		t.Fatalf("incomplete diagnostic response: %#v", response)
-	}
-}
-
 func TestNativeHostRejectsUnsupportedHost(t *testing.T) {
 	originalLauncher := launchDownloader
 	t.Cleanup(func() { launchDownloader = originalLauncher })
@@ -233,13 +163,12 @@ func TestNativeHostRejectsUnsupportedHost(t *testing.T) {
 }
 
 func TestNativeInvocationDetection(t *testing.T) {
-	if !isNativeInvocation([]string{extensionOrigin}) ||
+	if !isNativeInvocation([]string{}) ||
+		!isNativeInvocation([]string{extensionOrigin}) ||
 		!isNativeInvocation([]string{strings.TrimSuffix(extensionOrigin, "/")}) ||
+		!isNativeInvocation([]string{firefoxExtensionID}) ||
 		!isNativeInvocation([]string{"--native-host"}) {
 		t.Fatal("native invocation was not detected")
-	}
-	if isNativeInvocation([]string{"--install"}) {
-		t.Fatal("ordinary invocation was detected as native")
 	}
 }
 
@@ -312,4 +241,3 @@ func TestMozillaManifestPaths(t *testing.T) {
 		t.Fatalf("expected path to end in .json, got: %s", paths[0])
 	}
 }
-

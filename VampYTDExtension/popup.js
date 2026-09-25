@@ -13,11 +13,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const codecSelector = document.getElementById('codec-selector');
   const cookiesToggle = document.getElementById('cookies-toggle');
 
+  const activeVideoCard  = document.getElementById('active-video-card');
+  const activeVideoTitle = document.getElementById('active-video-title');
+  const activeVideoBadge = document.getElementById('active-video-badge');
+  const activeDownloadBtn = document.getElementById('active-download-btn');
+
+  let currentTabUrl = '';
+
   document.getElementById('version-text').textContent =
-    `Extension v${chrome.runtime.getManifest().version}`;
+    `v${chrome.runtime.getManifest().version}`;
 
   function setValue(id, text, state = '') {
     const el = document.getElementById(id);
+    if (!el) return;
     el.textContent = text;
     el.className = `health-value${state ? ` ${state}` : ''}`;
   }
@@ -53,8 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTool('ffmpeg-status',     details?.ffmpeg);
     renderTool('node-status',       details?.node);
     renderTool('fzf-status',        details?.fzf, true);
-    document.getElementById('download-folder').textContent =
-      details?.downloadDir || 'Unavailable until bridge connects';
+
+    const folderEl = document.getElementById('download-folder');
+    if (folderEl) {
+      folderEl.textContent = details?.downloadDir || 'Unavailable until bridge connects';
+    }
+
     checkedTime.textContent =
       `Checked ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
   }
@@ -78,42 +90,169 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- Tab switching ---
-  document.querySelectorAll('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach((t) =>
-        t.classList.toggle('active', t === tab)
-      );
-      document.querySelectorAll('.panel').forEach((panel) => {
-        panel.hidden = panel.id !== tab.dataset.panel;
+  // --- Active Tab Video Detection ---
+  function inspectActiveTab() {
+    if (!chrome.tabs?.query) return;
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs?.[0];
+      if (!activeTab || !activeTab.url) return;
+
+      currentTabUrl = activeTab.url;
+      let isSupported = false;
+      let siteName = 'Video';
+
+      try {
+        const u = new URL(activeTab.url);
+        const host = u.hostname.toLowerCase();
+
+        if (host.includes('youtube.com') || host.includes('youtu.be')) {
+          if (u.pathname === '/watch' || u.pathname.startsWith('/shorts/') || host === 'youtu.be') {
+            isSupported = true;
+            siteName = u.pathname.startsWith('/shorts/') ? 'Shorts' : 'YouTube';
+          }
+        } else if (host.includes('hotstar.com') || host.includes('jiohotstar.com')) {
+          isSupported = true;
+          siteName = 'Hotstar';
+        }
+      } catch (_) {}
+
+      if (isSupported && activeVideoCard) {
+        activeVideoCard.hidden = false;
+        // Clean title
+        let cleanTitle = activeTab.title || 'Active video';
+        cleanTitle = cleanTitle.replace(/\s*-\s*YouTube$/, '').replace(/\s*\|\s*Hotstar$/, '');
+        activeVideoTitle.textContent = cleanTitle;
+        activeVideoBadge.textContent = siteName;
+        if (siteName === 'Hotstar') {
+          activeVideoBadge.classList.add('hotstar');
+        } else {
+          activeVideoBadge.classList.remove('hotstar');
+        }
+      }
+    });
+  }
+
+  if (activeDownloadBtn) {
+    activeDownloadBtn.addEventListener('click', () => {
+      if (!currentTabUrl) return;
+
+      activeDownloadBtn.disabled = true;
+      activeDownloadBtn.textContent = 'Sending…';
+
+      chrome.runtime.sendMessage({ action: 'download', url: currentTabUrl }, (response) => {
+        const err = chrome.runtime.lastError;
+        const ok = !err && Boolean(response?.ok);
+
+        if (ok) {
+          activeDownloadBtn.textContent = '✓ Sent to VampYTD';
+          activeDownloadBtn.style.background = '#059669';
+        } else {
+          activeDownloadBtn.textContent = '⚠ Bridge offline';
+          activeDownloadBtn.style.background = '#dc2626';
+        }
+
+        setTimeout(() => {
+          activeDownloadBtn.disabled = false;
+          activeDownloadBtn.textContent = 'Download with VampYTD';
+          activeDownloadBtn.style.background = '';
+        }, 2200);
       });
+    });
+  }
+
+  // --- Tab switching with Keyboard Navigation ---
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+
+  function activateTab(tab) {
+    tabs.forEach((t) => {
+      const isActive = t === tab;
+      t.classList.toggle('active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      t.tabIndex = isActive ? 0 : -1;
+    });
+
+    document.querySelectorAll('.panel').forEach((panel) => {
+      panel.hidden = panel.id !== tab.dataset.panel;
+    });
+  }
+
+  tabs.forEach((tab) => {
+    tab.addEventListener('click', () => activateTab(tab));
+
+    tab.addEventListener('keydown', (e) => {
+      let targetTab = null;
+      const idx = tabs.indexOf(tab);
+
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        targetTab = tabs[(idx + 1) % tabs.length];
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        targetTab = tabs[(idx - 1 + tabs.length) % tabs.length];
+      }
+
+      if (targetTab) {
+        e.preventDefault();
+        targetTab.focus();
+        activateTab(targetTab);
+      }
     });
   });
 
-  // --- Restore saved settings ---
+  // --- Setting Selectors (Radio Groups with ARIA + Keyboard Support) ---
+  function setupRadioGroup(container, settingKey, attrKey) {
+    const options = Array.from(container.querySelectorAll('.option'));
+
+    function selectOption(option) {
+      options.forEach((o) => {
+        const isMatch = o === option;
+        o.classList.toggle('active', isMatch);
+        o.setAttribute('aria-checked', isMatch ? 'true' : 'false');
+        o.tabIndex = isMatch ? 0 : -1;
+      });
+      chrome.storage.local.set({ [settingKey]: option.dataset[attrKey] });
+    }
+
+    container.addEventListener('click', (event) => {
+      const option = event.target.closest('.option');
+      if (option) selectOption(option);
+    });
+
+    container.addEventListener('keydown', (e) => {
+      const current = options.find((o) => o.classList.contains('active')) || options[0];
+      const idx = options.indexOf(current);
+      let nextOption = null;
+
+      if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+        nextOption = options[(idx + 1) % options.length];
+      } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+        nextOption = options[(idx - 1 + options.length) % options.length];
+      } else if (e.key === ' ' || e.key === 'Enter') {
+        const focused = document.activeElement.closest('.option');
+        if (focused) nextOption = focused;
+      }
+
+      if (nextOption) {
+        e.preventDefault();
+        nextOption.focus();
+        selectOption(nextOption);
+      }
+    });
+
+    return selectOption;
+  }
+
+  const setModeOption  = setupRadioGroup(modeSelector, 'downloadMode', 'mode');
+  const setCodecOption = setupRadioGroup(codecSelector, 'preferredCodec', 'codec');
+
+  // --- Restore Saved Settings ---
   chrome.storage.local.get(DEFAULTS, (items) => {
     cookiesToggle.checked = items.enableCookies;
-    modeSelector.querySelector(`[data-mode="${items.downloadMode}"]`)?.classList.add('active');
-    codecSelector.querySelector(`[data-codec="${items.preferredCodec}"]`)?.classList.add('active');
-  });
 
-  // --- Persist setting changes ---
-  modeSelector.addEventListener('click', (event) => {
-    const option = event.target.closest('.option');
-    if (!option) return;
-    modeSelector.querySelectorAll('.option').forEach((o) =>
-      o.classList.toggle('active', o === option)
-    );
-    chrome.storage.local.set({ downloadMode: option.dataset.mode });
-  });
+    const savedModeEl = modeSelector.querySelector(`[data-mode="${items.downloadMode}"]`);
+    if (savedModeEl) setModeOption(savedModeEl);
 
-  codecSelector.addEventListener('click', (event) => {
-    const option = event.target.closest('.option');
-    if (!option) return;
-    codecSelector.querySelectorAll('.option').forEach((o) =>
-      o.classList.toggle('active', o === option)
-    );
-    chrome.storage.local.set({ preferredCodec: option.dataset.codec });
+    const savedCodecEl = codecSelector.querySelector(`[data-codec="${items.preferredCodec}"]`);
+    if (savedCodecEl) setCodecOption(savedCodecEl);
   });
 
   cookiesToggle.addEventListener('change', () => {
@@ -121,5 +260,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   testButton.addEventListener('click', runDiagnostics);
+
+  // Initialize
+  inspectActiveTab();
   runDiagnostics();
 });

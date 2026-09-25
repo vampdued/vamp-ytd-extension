@@ -31,6 +31,18 @@ function sendNative(payload) {
     });
 }
 
+// Temporary badge feedback on toolbar icon for context menu or quick actions.
+function showBadgeFeedback(ok) {
+    if (!chrome.action?.setBadgeText) return;
+    const text = ok ? '✓' : 'ERR';
+    const color = ok ? '#10b981' : '#ef4444';
+    chrome.action.setBadgeText({ text });
+    chrome.action.setBadgeBackgroundColor({ color });
+    setTimeout(() => {
+        chrome.action.setBadgeText({ text: '' });
+    }, 3000);
+}
+
 // Reads stored settings then dispatches the download payload to the native host.
 function sendToBridge(url) {
     return new Promise((resolve) => {
@@ -109,11 +121,22 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // --- Context Menu Click Handler ---
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === 'vampytd-download-link' && info.linkUrl) {
-        sendToBridge(info.linkUrl);
-    } else if (info.menuItemId === 'vampytd-download-page') {
-        sendToBridge(info.pageUrl || tab.url);
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+    const targetUrl = (info.menuItemId === 'vampytd-download-link')
+        ? info.linkUrl
+        : (info.pageUrl || tab?.url);
+
+    if (!targetUrl) return;
+
+    const res = await sendToBridge(targetUrl);
+    showBadgeFeedback(res.ok);
+
+    if (tab?.id) {
+        chrome.tabs.sendMessage(tab.id, {
+            action: 'toast',
+            ok: res.ok,
+            message: res.ok ? 'Sent to VampYTD' : (res.error || 'Bridge offline')
+        }).catch(() => {});
     }
 });
 
