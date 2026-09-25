@@ -118,6 +118,7 @@
 
     body {
       width: 350px;
+      min-height: 440px;
       max-height: 580px;
       overflow-y: auto;
       background: var(--bg);
@@ -221,18 +222,28 @@
 
     .panel[hidden] { display: none; }
 
-    /* Hero Media Card (Neutral with Crimson Signpost) */
+    /* Hero Media Card (Neutral with Crisp Internal Crimson Signpost) */
     .hero-media-card {
+      position: relative;
+      overflow: hidden;
       background: var(--card-hero-bg);
       border: 1px solid var(--card-hero-border);
-      border-left: 3px solid var(--yt-red);
       border-radius: 10px;
-      padding: 12px 13px;
+      padding: 12px 14px 12px 16px;
       margin-bottom: 14px;
       display: flex;
       flex-direction: column;
       gap: 8px;
       box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .hero-media-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 3.5px;
+      background: var(--yt-red);
     }
 
     .media-card-header {
@@ -363,33 +374,37 @@
 
     .tools-chips-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 5px;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
       padding: 8px 0 4px;
     }
 
     .tool-chip {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 5px 6px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 6px 8px;
       background: var(--surface-muted);
       border-radius: 6px;
-      font-size: 10px;
+      font-size: 11px;
     }
-    .tool-name { color: var(--text-secondary); font-weight: 600; }
-    .tool-val { font-weight: 600; color: var(--text-muted); font-size: 10px; }
+    .tool-chip.span-full {
+      grid-column: 1 / -1;
+    }
+    .tool-name { color: var(--text-secondary); font-weight: 550; }
+    .tool-val { font-weight: 600; color: var(--text-muted); font-size: 11px; }
     .tool-val.good { color: var(--success-text); }
     .tool-val.warn { color: var(--warning-text); }
     .tool-val.bad  { color: var(--error-text); }
 
-    /* Actionable Destination Folder Card */
-    .folder-card {
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
+    /* Actionable Destination Folder Container */
+    .folder-section {
       padding: 10px 0 12px;
       border-top: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
 
     .folder-header {
@@ -397,34 +412,69 @@
       align-items: center;
       justify-content: space-between;
     }
-    .folder-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
-    
+    .folder-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .folder-box {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 8px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .folder-box:hover {
+      border-color: var(--text-secondary);
+      background: var(--surface-hover);
+    }
+    .folder-box:focus-within {
+      outline: 2px solid var(--border-focus);
+    }
+
+    .folder-path {
+      font: 11px/1.35 ui-monospace, SFMono-Regular, Consolas, monospace;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      user-select: all;
+      flex: 1;
+    }
+
     .btn-copy-folder {
       display: inline-flex;
       align-items: center;
       gap: 4px;
-      background: transparent;
-      border: 0;
-      color: var(--text-muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
       cursor: pointer;
       font: inherit;
       font-size: 11px;
-      font-weight: 550;
-      padding: 2px 4px;
+      font-weight: 600;
+      padding: 3px 8px;
       border-radius: 4px;
-      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s, border-color 0.15s;
     }
-    .btn-copy-folder:hover { color: var(--text); background: var(--surface-hover); }
-    .btn-copy-folder.copied { color: var(--success-text); font-weight: 600; }
-
-    .folder-path {
-      font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
-      color: var(--text-secondary);
-      overflow-wrap: anywhere;
-      cursor: pointer;
-      user-select: all;
+    .btn-copy-folder:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-secondary);
     }
-    .folder-path:hover { color: var(--text); }
+    .btn-copy-folder.copied {
+      color: var(--success-text);
+      border-color: var(--success-text);
+      background: var(--success-bg);
+    }
 
     /* Quiet Secondary Tonal Action Button */
     .yt-secondary-btn {
@@ -459,17 +509,17 @@
       margin-bottom: 6px;
     }
 
-    /* Option Chips with Explicit Checkmarks */
+    /* Option Chips with Native Left Radio Indicators */
     .options-grid {
       display: grid;
-      gap: 4px;
+      gap: 5px;
     }
 
     .option-chip {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 7px 10px;
+      padding: 8px 10px;
       border: 1px solid var(--border);
       border-radius: 7px;
       color: var(--text-secondary);
@@ -494,33 +544,80 @@
     .option-label-group {
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
 
-    .option-check {
+    .radio-dot {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 14px;
-      height: 14px;
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--yt-red);
-      opacity: 0;
-      transform: scale(0.6);
-      transition: all 0.15s ease;
+      flex-shrink: 0;
+      transition: border-color 0.15s, background 0.15s;
     }
-    .option-chip.active .option-check {
+    .radio-dot::after {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--yt-red);
+      opacity: 0;
+      transform: scale(0.4);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+    .option-chip:hover .radio-dot {
+      border-color: var(--text-secondary);
+    }
+    .option-chip.active .radio-dot {
+      border-color: var(--yt-red);
+    }
+    .option-chip.active .radio-dot::after {
       opacity: 1;
       transform: scale(1);
     }
 
-    .option-meta { font-size: 10px; color: var(--text-muted); }
+    .option-title { font-weight: 550; font-size: 12px; }
+    .option-chip.active .option-title { font-weight: 650; }
+    .option-meta { font-size: 11px; color: var(--text-muted); }
 
-    /* Compact 3-Column Codec Grid */
-    .codec-grid {
+    /* Preferred Codec: Auto Hero Pill + Balanced 2x2 Grid */
+    .codec-container {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .codec-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .codec-hero:hover { background: var(--surface-hover); border-color: var(--text-secondary); }
+    .codec-hero:focus-visible { outline: 2px solid var(--border-focus); }
+    .codec-hero.active {
+      border-color: var(--text);
+      background: var(--surface-subtle);
+      color: var(--text);
+      font-weight: 650;
+      box-shadow: 0 0 0 1px var(--text);
+    }
+    .codec-hero-title { font-size: 12px; font-weight: 550; }
+    .codec-hero.active .codec-hero-title { font-weight: 650; }
+    .codec-hero-meta { font-size: 11px; color: var(--text-muted); }
+
+    .codec-grid-2x2 {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 5px;
     }
 
@@ -529,7 +626,7 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 6px 4px;
+      padding: 7px 4px;
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--surface);
@@ -548,8 +645,8 @@
       font-weight: 650;
       box-shadow: 0 0 0 1px var(--text);
     }
-    .codec-title { font-size: 11px; display: flex; align-items: center; gap: 3px; }
-    .codec-meta { font-size: 9px; color: var(--text-muted); }
+    .codec-title { font-size: 11px; font-weight: 600; text-align: center; }
+    .codec-meta { font-size: 10px; color: var(--text-muted); margin-top: 1px; text-align: center; }
 
     /* Native YouTube Neutral Toggle Switch */
     .switch {
@@ -640,7 +737,7 @@
           </div>
         </div>
 
-        <!-- Balanced 3-Column Tools Grid -->
+        <!-- Balanced Dependencies Grid -->
         <details class="tools-accordion" id="tools-details">
           <summary>View individual dependencies</summary>
           <div class="tools-chips-grid">
@@ -648,20 +745,22 @@
             <div class="tool-chip"><span class="tool-name">yt-dlp</span> <span class="tool-val" id="ytdlp-status">Checking</span></div>
             <div class="tool-chip"><span class="tool-name">FFmpeg</span> <span class="tool-val" id="ffmpeg-status">Checking</span></div>
             <div class="tool-chip"><span class="tool-name">Node.js</span> <span class="tool-val" id="node-status">Checking</span></div>
-            <div class="tool-chip"><span class="tool-name">FZF</span> <span class="tool-val" id="fzf-status">Optional</span></div>
+            <div class="tool-chip span-full"><span class="tool-name">FZF (Optional)</span> <span class="tool-val" id="fzf-status">Optional</span></div>
           </div>
         </details>
 
-        <!-- Actionable Destination Folder Card -->
-        <div class="folder-card">
+        <!-- Actionable Destination Folder Container -->
+        <div class="folder-section">
           <div class="folder-header">
             <span class="folder-label">Destination Folder</span>
+          </div>
+          <div class="folder-box" id="folder-box" title="Click to copy path">
+            <span class="folder-path" id="download-folder">Checking…</span>
             <button type="button" class="btn-copy-folder" id="btn-copy-folder" title="Copy folder path to clipboard">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               <span id="copy-label">Copy</span>
             </button>
           </div>
-          <span class="folder-path" id="download-folder" title="Click to copy path">Checking…</span>
         </div>
 
         <!-- Quiet Secondary Test Connection Button -->
@@ -676,28 +775,28 @@
           <div class="options-grid" id="mode-selector" role="radiogroup" aria-labelledby="mode-label">
             <div class="option-chip" data-mode="interactive" role="radio" aria-checked="false" tabindex="0">
               <div class="option-label-group">
-                <span class="option-check" aria-hidden="true">✓</span>
+                <span class="radio-dot" aria-hidden="true"></span>
                 <span class="option-title">Interactive</span>
               </div>
               <span class="option-meta">Format menu</span>
             </div>
             <div class="option-chip" data-mode="quick-max" role="radio" aria-checked="false" tabindex="-1">
               <div class="option-label-group">
-                <span class="option-check" aria-hidden="true">✓</span>
+                <span class="radio-dot" aria-hidden="true"></span>
                 <span class="option-title">Quick Max</span>
               </div>
               <span class="option-meta">Best quality</span>
             </div>
             <div class="option-chip" data-mode="quick-1080p" role="radio" aria-checked="false" tabindex="-1">
               <div class="option-label-group">
-                <span class="option-check" aria-hidden="true">✓</span>
+                <span class="radio-dot" aria-hidden="true"></span>
                 <span class="option-title">Quick 1080p</span>
               </div>
               <span class="option-meta">Full HD</span>
             </div>
             <div class="option-chip" data-mode="quick-4k" role="radio" aria-checked="false" tabindex="-1">
               <div class="option-label-group">
-                <span class="option-check" aria-hidden="true">✓</span>
+                <span class="radio-dot" aria-hidden="true"></span>
                 <span class="option-title">Quick 4K</span>
               </div>
               <span class="option-meta">Ultra HD</span>
@@ -705,29 +804,31 @@
           </div>
         </div>
 
-        <!-- Compact 3-Column Codec Grid -->
+        <!-- Preferred Codec: Auto Hero Pill + Balanced 2x2 Grid -->
         <div class="settings-group">
           <h2 class="settings-heading" id="codec-label">Preferred Codec</h2>
-          <div class="codec-grid" id="codec-selector" role="radiogroup" aria-labelledby="codec-label">
-            <div class="codec-chip" data-codec="auto" role="radio" aria-checked="false" tabindex="0">
-              <span class="codec-title"><span class="option-check" aria-hidden="true">✓</span>Auto</span>
-              <span class="codec-meta">Default</span>
+          <div class="codec-container" id="codec-selector" role="radiogroup" aria-labelledby="codec-label">
+            <div class="codec-hero codec-chip" data-codec="auto" role="radio" aria-checked="false" tabindex="0">
+              <span class="codec-hero-title">Auto</span>
+              <span class="codec-hero-meta">Default (yt-dlp best)</span>
             </div>
-            <div class="codec-chip" data-codec="av1" role="radio" aria-checked="false" tabindex="-1">
-              <span class="codec-title"><span class="option-check" aria-hidden="true">✓</span>AV1</span>
-              <span class="codec-meta">Efficient</span>
-            </div>
-            <div class="codec-chip" data-codec="vp9" role="radio" aria-checked="false" tabindex="-1">
-              <span class="codec-title"><span class="option-check" aria-hidden="true">✓</span>VP9</span>
-              <span class="codec-meta">YouTube</span>
-            </div>
-            <div class="codec-chip" data-codec="hevc" role="radio" aria-checked="false" tabindex="-1">
-              <span class="codec-title"><span class="option-check" aria-hidden="true">✓</span>HEVC</span>
-              <span class="codec-meta">H.265</span>
-            </div>
-            <div class="codec-chip" data-codec="h264" role="radio" aria-checked="false" tabindex="-1">
-              <span class="codec-title"><span class="option-check" aria-hidden="true">✓</span>H264</span>
-              <span class="codec-meta">Classic</span>
+            <div class="codec-grid-2x2">
+              <div class="codec-chip" data-codec="av1" role="radio" aria-checked="false" tabindex="-1">
+                <span class="codec-title">AV1</span>
+                <span class="codec-meta">Efficient</span>
+              </div>
+              <div class="codec-chip" data-codec="vp9" role="radio" aria-checked="false" tabindex="-1">
+                <span class="codec-title">VP9</span>
+                <span class="codec-meta">YouTube</span>
+              </div>
+              <div class="codec-chip" data-codec="hevc" role="radio" aria-checked="false" tabindex="-1">
+                <span class="codec-title">HEVC</span>
+                <span class="codec-meta">H.265</span>
+              </div>
+              <div class="codec-chip" data-codec="h264" role="radio" aria-checked="false" tabindex="-1">
+                <span class="codec-title">H264</span>
+                <span class="codec-meta">Classic</span>
+              </div>
             </div>
           </div>
         </div>

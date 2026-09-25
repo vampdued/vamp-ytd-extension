@@ -151,8 +151,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }).catch(() => {});
   }
 
+  const folderBox = document.getElementById('folder-box');
   if (copyFolderBtn) copyFolderBtn.addEventListener('click', copyFolderPath);
   if (folderEl) folderEl.addEventListener('click', copyFolderPath);
+  if (folderBox) folderBox.addEventListener('click', copyFolderPath);
 
   // --- Active Tab Video & Theme Detection ---
   function inspectActiveTab() {
