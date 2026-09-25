@@ -149,6 +149,27 @@ go build -o ytd.exe ./cmd/ytd
 go build -o bridge.exe ./cmd/bridge
 ```
 
+## Development workflow
+
+To keep active local development cleanly separated from your normal installed version of VampYTD:
+
+- **Switch to Dev Mode**:
+  Double-click `dev.cmd` (or run `./setup-dev.ps1` in PowerShell).
+  - Automatically compiles `ytd.exe` and `bridge.exe` directly in your Git workspace.
+  - Registers the native messaging host to point directly to your workspace repository.
+  - Copies the workspace extension path (`...\vamp-ytd-extension\VampYTDExtension`) to your clipboard.
+  - You can now edit code, test changes live, and simply click **Reload 🔄** in `chrome://extensions`.
+
+- **Switch back to Normal / Production**:
+  Double-click `Install-VampYTD.cmd` (or run `./deploy.ps1`).
+  - Restores your system to the clean production build under `%LOCALAPPDATA%\VampYTD`.
+  - Re-registers native messaging back to the installed production binary.
+
+### Git branching model
+
+- **`main`**: Protected branch for stable production releases. Commits tagged with a version (e.g. `v1.4.0`) automatically build and publish release binaries.
+- **`dev`**: Active development branch where ongoing features, experiments, and fixes are developed and tested before merging into `main`.
+
 ## Project layout
 
 ```text
