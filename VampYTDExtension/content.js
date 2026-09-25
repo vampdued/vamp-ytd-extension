@@ -293,7 +293,7 @@ function setupResizeObserver() {
 function injectPlayerCropButton() {
     if (!settings.enableCinematicCrop) return;
     const rightControls = document.querySelector('.ytp-right-controls');
-    if (!rightControls || rightControls.querySelector('#vampytd-cinema-btn')) return;
+    if (!rightControls || document.getElementById('vampytd-cinema-btn')) return;
 
     const btn = document.createElement('button');
     btn.id = 'vampytd-cinema-btn';
@@ -310,12 +310,18 @@ function injectPlayerCropButton() {
         toggleCinematic();
     });
 
-    // Insert before the fullscreen button
-    const fsButton = rightControls.querySelector('.ytp-fullscreen-button');
-    if (fsButton) {
-        rightControls.insertBefore(btn, fsButton);
-    } else {
-        rightControls.appendChild(btn);
+    // Safely insert before the fullscreen button via its immediate parent
+    try {
+        const fsButton = rightControls.querySelector('.ytp-fullscreen-button');
+        if (fsButton && fsButton.parentElement) {
+            fsButton.parentElement.insertBefore(btn, fsButton);
+        } else {
+            rightControls.appendChild(btn);
+        }
+    } catch (_) {
+        try {
+            rightControls.appendChild(btn);
+        } catch (_) {}
     }
 
     updatePlayerCropButtonState();
