@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.0 - Standalone Setup Executable & Streamlined Distribution
+
+- **Standalone Windows Installer (`VampYTD-Setup.exe`)**:
+  - Self-contained executable embedding `ytd.exe`, `bridge.exe`, and packed Chromium extension files with zero external dependencies.
+  - Colored step-by-step progress, automatic process termination, registry configuration, user PATH update, and dependency checking.
+  - Automatically copies extension path to clipboard, offers to open `chrome://extensions`, and opens the extension folder in Explorer.
+  - Built-in `--uninstall` mode and automatic creation of `%LOCALAPPDATA%\VampYTD\uninstall.exe`.
+- **1-Liner PowerShell Web Installer (`install.ps1`)**:
+  - Direct execution via `irm https://raw.githubusercontent.com/vampdued/vamp-ytd-extension/main/install.ps1 | iex`.
+- **Developer vs. Release Separation**:
+  - Added dedicated `build.ps1` and `build.cmd` scripts for dev mode.
+  - Release archives stripped of developer-only tools and scripts.
+- **Automated GitHub Release Pipeline**:
+  - Automatic version tag detection, build, and release asset generation on push to `main`.
+
 ## 1.4.0 - Pure Native Overhaul & YouTube Power Tools
 
 - **Branding & Visual Identity**:

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Send to VampYTD",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA4Y1+l+VFn0WVJpDNAZrKMm0WfAEblRWj9KkoM4kNDmRrf9Qhe7yHn+osqqhcDJNJgU4LePXGN0GKxELzw13eCpiY8KRaOR/CLYdCU6FgTwCLHTjI81sCpcbk7xHlXjIseVaNloPfdcs02XDoRXGZ1sDvsoSjU30KJ0MgXMCl9aPvVCF1BZ0CuPx1PTfkBEbAEj4bX2ToT/7UzHA8JWlM9B+5a0kSB5H01PmD3NES2ac1Cs7mwOcrNhZ8h/+Hhcky2P6QnVZjggaS2oeMaMVze8NgkNf/wScEw66H+i1+M7Wyq9hZ+ew723uXuOAydbB/hLMVfakaNsrmn+KbhDFYSwIDAQAB",
   "description": "Sends the current URL to your local VampYTD script via native messaging.",
   "browser_specific_settings": {
