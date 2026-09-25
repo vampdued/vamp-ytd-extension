@@ -10,12 +10,11 @@ on:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    name: Build & Publish Windows Release
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,75 +26,106 @@ jobs:
           cache: true
 
       - name: Verify release metadata and ensure tag
-        shell: bash
+        shell: powershell
         run: |
-          test -f LICENSE || { echo "LICENSE is required for a public release"; exit 1; }
-          manifest_version="$(node -p "require('./VampYTDExtension/manifest.json').version")"
-          target_tag="v${manifest_version}"
-          echo "Target tag: ${target_tag}"
+          if (-not (Test-Path -LiteralPath "LICENSE")) {
+            throw "LICENSE is required for a public release"
+          }
+          $manifest = Get-Content -Raw "VampYTDExtension\manifest.json" | ConvertFrom-Json
+          $manifestVersion = $manifest.version
+          $targetTag = "v$manifestVersion"
+          Write-Host "Target tag: $targetTag"
+          "TARGET_TAG=$targetTag" | Out-File -FilePath $env:GITHUB_ENV -Append
 
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            tag_version="${GITHUB_REF_NAME#v}"
-            test "${manifest_version}" = "${tag_version}" || {
-              echo "Extension version ${manifest_version} does not match tag ${GITHUB_REF_NAME}"
-              exit 1
+          $currentRefType = $env:GITHUB_REF_TYPE
+          $currentRefName = $env:GITHUB_REF_NAME
+
+          if ($currentRefType -eq "tag") {
+            $tagVersion = $currentRefName.TrimStart("v")
+            if ($manifestVersion -ne $tagVersion) {
+              throw "Extension version $manifestVersion does not match tag $currentRefName"
             }
-          else
-            if git rev-parse "${target_tag}" >/dev/null 2>&1; then
-              echo "Tag ${target_tag} already exists."
-              git checkout "${target_tag}"
-            else
-              echo "Creating new release tag ${target_tag}..."
+          } else {
+            git rev-parse "$targetTag" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Tag $targetTag already exists."
+              git checkout "$targetTag"
+            } else {
+              Write-Host "Creating new release tag $targetTag..."
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
-              git tag -a "${target_tag}" -m "Release ${target_tag}"
-              git push origin "${target_tag}"
-              git checkout "${target_tag}"
-            fi
-          fi
+              git tag -a "$targetTag" -m "Release $targetTag"
+              git push origin "$targetTag"
+              git checkout "$targetTag"
+            }
+          }
 
-      - name: Test
-        run: go test ./...
+      - name: Run Tests
+        shell: powershell
+        run: go test -v ./...
 
-      - name: Build VampYTD-Setup.exe
-        shell: bash
+      - name: Compile Binaries and Standalone Installer
+        shell: powershell
+        run: .\build.ps1
+
+      - name: Assemble Release Package and Checksums
+        shell: powershell
         run: |
-          echo "Building Windows binaries for installer payload..."
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ytd.exe ./cmd/ytd
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o bridge.exe ./cmd/bridge
+          $tag = $env:TARGET_TAG
+          New-Item -ItemType Directory -Path "dist" -Force | Out-Null
+          $stagingDir = "dist\VampYTD"
+          if (Test-Path -LiteralPath $stagingDir) {
+            Remove-Item -LiteralPath $stagingDir -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $stagingDir -Force | Out-Null
 
-          mkdir -p cmd/installer/payload/extension
-          cp ytd.exe cmd/installer/payload/ytd.exe
-          cp bridge.exe cmd/installer/payload/bridge.exe
-          cp -r VampYTDExtension/* cmd/installer/payload/extension/
-          rm -f cmd/installer/payload/extension/manifest.firefox.json
+          Copy-Item -LiteralPath "ytd.exe" -Destination "$stagingDir\ytd.exe" -Force
+          Copy-Item -LiteralPath "bridge.exe" -Destination "$stagingDir\bridge.exe" -Force
+          Copy-Item -LiteralPath "deploy.ps1" -Destination "$stagingDir\deploy.ps1" -Force
+          Copy-Item -LiteralPath "uninstall.ps1" -Destination "$stagingDir\uninstall.ps1" -Force
+          Copy-Item -LiteralPath "Install-VampYTD.cmd" -Destination "$stagingDir\Install-VampYTD.cmd" -Force
+          Copy-Item -LiteralPath "Uninstall-VampYTD.cmd" -Destination "$stagingDir\Uninstall-VampYTD.cmd" -Force
+          Copy-Item -LiteralPath "README.md" -Destination "$stagingDir\README.md" -Force
+          Copy-Item -LiteralPath "CHANGELOG.md" -Destination "$stagingDir\CHANGELOG.md" -Force
+          Copy-Item -LiteralPath "LICENSE" -Destination "$stagingDir\LICENSE" -Force
 
-          echo "Compiling standalone VampYTD-Setup.exe..."
-          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o VampYTD-Setup.exe ./cmd/installer
+          $extStaging = "$stagingDir\VampYTDExtension"
+          New-Item -ItemType Directory -Path $extStaging -Force | Out-Null
+          Copy-Item -Path "VampYTDExtension\*" -Destination $extStaging -Recurse -Force
+          if (Test-Path -LiteralPath "$extStaging\manifest.firefox.json") {
+            Remove-Item -LiteralPath "$extStaging\manifest.firefox.json" -Force
+          }
 
-          # Clean payload files so repository remains clean
-          rm -rf cmd/installer/payload/ytd.exe cmd/installer/payload/bridge.exe cmd/installer/payload/extension ytd.exe bridge.exe
-          ls -lh VampYTD-Setup.exe
+          $zipName = "VampYTD_${tag}_windows_amd64.zip"
+          $zipPath = "dist\$zipName"
+          Compress-Archive -Path "$stagingDir\*" -DestinationPath $zipPath -Force
 
-      - name: Create release artifacts
-        uses: goreleaser/goreleaser-action@v7
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+          # Calculate SHA256 checksums
+          $setupHash = (Get-FileHash -Algorithm SHA256 -LiteralPath "VampYTD-Setup.exe").Hash.ToLower()
+          $zipHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath).Hash.ToLower()
+          @(
+            "$setupHash  VampYTD-Setup.exe",
+            "$zipHash  $zipName"
+          ) | Out-File -FilePath "dist\checksums.txt" -Encoding ascii
+
+          Write-Host "`nRelease Assets Prepared in dist/:"
+          Get-ChildItem dist
+
+      - name: Publish Release via GitHub CLI
+        shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload standalone installer to release
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          manifest_version="$(node -p "require('./VampYTDExtension/manifest.json').version")"
-          target_tag="v${manifest_version}"
-          gh release upload "${target_tag}" VampYTD-Setup.exe --clobber || true
+          $tag = $env:TARGET_TAG
+          $zipFile = "dist\VampYTD_${tag}_windows_amd64.zip"
+          $setupFile = "VampYTD-Setup.exe"
+          $checksumsFile = "dist\checksums.txt"
 
-      - name: Attest checksums
-        uses: actions/attest@v4
-        with:
-          subject-checksums: ./dist/checksums.txt
+          gh release view "$tag" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Updating release $tag with compiled assets..."
+            gh release upload "$tag" $setupFile $zipFile $checksumsFile --clobber
+          } else {
+            Write-Host "Creating release $tag..."
+            gh release create "$tag" $setupFile $zipFile $checksumsFile --title "VampYTD $tag" --generate-notes
+          }
