@@ -57,6 +57,26 @@ jobs:
       - name: Test
         run: go test ./...
 
+      - name: Build VampYTD-Setup.exe
+        shell: bash
+        run: |
+          echo "Building Windows binaries for installer payload..."
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ytd.exe ./cmd/ytd
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o bridge.exe ./cmd/bridge
+
+          mkdir -p cmd/installer/payload/extension
+          cp ytd.exe cmd/installer/payload/ytd.exe
+          cp bridge.exe cmd/installer/payload/bridge.exe
+          cp -r VampYTDExtension/* cmd/installer/payload/extension/
+          rm -f cmd/installer/payload/extension/manifest.firefox.json
+
+          echo "Compiling standalone VampYTD-Setup.exe..."
+          GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o VampYTD-Setup.exe ./cmd/installer
+
+          # Clean payload files so repository remains clean
+          rm -rf cmd/installer/payload/ytd.exe cmd/installer/payload/bridge.exe cmd/installer/payload/extension ytd.exe bridge.exe
+          ls -lh VampYTD-Setup.exe
+
       - name: Create release artifacts
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -65,6 +85,15 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload standalone installer to release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          manifest_version="$(node -p "require('./VampYTDExtension/manifest.json').version")"
+          target_tag="v${manifest_version}"
+          gh release upload "${target_tag}" VampYTD-Setup.exe --clobber || true
 
       - name: Attest checksums
         uses: actions/attest@v4

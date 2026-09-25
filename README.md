@@ -26,23 +26,32 @@ VampYTD is a Windows-first video downloader with a companion browser extension f
 
 ## Simple Windows installation
 
-1. Download the Windows ZIP from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
-2. Extract the complete ZIP archive.
-3. Double-click `Install-VampYTD.cmd`.
-4. Activate the extension in your browser:
-   - **Chrome / Edge / Brave / Vivaldi**: Open `chrome://extensions` (or `edge://extensions` / `brave://extensions`), enable **Developer mode**, click **Load unpacked**, and select the extension folder (path auto-copied to clipboard).
+Choose the method that suits you best:
 
-The double-click installer:
+### Option 1: Standalone Installer (Recommended)
+1. Download **`VampYTD-Setup.exe`** from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases/latest).
+2. Double-click **`VampYTD-Setup.exe`** to run the interactive setup.
+3. The installer extracts files to `%LOCALAPPDATA%\VampYTD`, sets up the Windows Registry for Chromium browsers, adds `ytd` to your user PATH, copies the extension path to your clipboard, and offers to open `chrome://extensions` and the folder automatically.
 
-- installs missing `yt-dlp`, FFmpeg, Node.js, and FZF packages automatically via Windows Package Manager (`winget`);
-- installs pre-built VampYTD binaries under `%LOCALAPPDATA%\VampYTD`;
-- adds the `ytd` command-line downloader to your user `PATH`;
-- registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
-- copies the unpacked extension folder path directly to your clipboard.
+### Option 2: PowerShell 1-Liner (Fastest for Terminal Users)
+Open PowerShell and run:
+```powershell
+irm https://raw.githubusercontent.com/vampdued/vamp-ytd-extension/main/install.ps1 | iex
+```
+This automatically downloads the latest `VampYTD-Setup.exe` and launches the setup.
 
-Administrator access is not required. Run `Install-VampYTD.cmd` again at any time to repair or update the installation.
+### Option 3: Portable ZIP Archive
+1. Download the release ZIP (`VampYTD_<version>_windows_amd64.zip`) from [GitHub Releases](https://github.com/vampdued/vamp-ytd-extension/releases).
+2. Extract the ZIP archive and double-click **`Install-VampYTD.cmd`**.
 
-To uninstall VampYTD, remove the unpacked browser extension and double-click `Uninstall-VampYTD.cmd`.
+---
+
+### Activating the Browser Extension
+1. Open **`chrome://extensions`** (or `edge://extensions`, `brave://extensions`, `vivaldi://extensions`).
+2. Toggle on **Developer mode** in the top-right corner.
+3. Click **Load unpacked** and select the folder path (auto-copied to your clipboard by the installer).
+
+To uninstall anytime, double-click **`%LOCALAPPDATA%\VampYTD\uninstall.exe`** or run `VampYTD-Setup.exe --uninstall`.
 
 > Windows releases are currently unsigned. Windows may display a SmartScreen security warning on first launch.
 

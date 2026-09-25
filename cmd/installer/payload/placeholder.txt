@@ -1,0 +1,2 @@
+VampYTD payload staging directory.
+During build, ytd.exe, bridge.exe, and extension/ are staged here.

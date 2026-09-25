@@ -40,6 +40,11 @@ archives:
       - "!setup-dev.ps1"
       - "!build.cmd"
       - "!build.ps1"
+      - "!cmd/installer/**"
+
+release:
+  extra_files:
+    - glob: "./VampYTD-Setup.exe"
 
 checksum:
   name_template: checksums.txt
