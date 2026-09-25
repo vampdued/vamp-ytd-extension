@@ -13,12 +13,15 @@ VampYTD is a Windows-first video downloader with a companion browser extension f
 ## Features at a glance
 
 - ⚡ **Pure Native Messaging**: Launches the bridge process on demand with zero permanent background services, zero open network ports, and zero host permissions.
+- 🎨 **Minimal Light-Themed Dashboard**: Crisp white surfaces (`#ffffff`), high-contrast typography, and WCAG 2.1 AA keyboard accessibility across **Status**, **Settings**, and **YT Tools** tabs.
+- 🎦 **Cinematic 2.39:1 Video Crop**: One-click in-player control bar button and `Alt+C` hotkey to crop black bars on widescreen videos with dynamic resize and fullscreen scaling.
+- 💡 **Ambient Glow & Annotation Blocker**: Injected at `document_start` to hide distracting background glow effects and legacy annotations, cutting GPU/CPU rendering overhead.
+- 📺 **Channel 'Videos' Tab First**: Automatically rewrites channel links and redirects channel featured pages straight to the `/videos` tab.
 - 🎬 **In-Page YouTube Integration**: Embedded download buttons on both regular YouTube watch pages and vertical **YouTube Shorts** (`#actions` rail).
 - 📌 **Active Video Detection Card**: Extension popup automatically detects the video playing in your active tab (YouTube / JioHotstar) with one-click downloading.
 - 🔔 **Instant Visual Feedback**: Toolbar badge status indicators (`✓` / `ERR`) and non-intrusive floating in-page toast alerts on context-menu downloads.
 - 🎛 **Format & Codec Preferences**: Quick-download presets (Interactive, Quick Max, 1080p, 4K) and codec selection (Auto, AV1, VP9, HEVC/H.265, H.264).
 - 🍪 **Seamless Cookie Support**: Toggle site-specific authentication cookies (`cookies-yt.txt`, `cookies-jhs.txt`) directly from the popup for members-only or age-restricted content.
-- ♿ **WCAG 2.1 AA Accessible UI**: Full keyboard arrow navigation, focus indicators, and ARIA roles with a sleek zero-footer dark design.
 
 ## Simple Windows installation
 

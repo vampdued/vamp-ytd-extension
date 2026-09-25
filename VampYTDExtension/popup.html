@@ -6,19 +6,27 @@
   <title>VampYTD</title>
   <style>
     :root {
-      color-scheme: dark;
-      --bg: #0d0e11;
-      --surface: #15171b;
-      --surface-2: #1b1e24;
-      --border: #292c34;
-      --text: #f5f6f8;
-      --muted: #959ba8;
-      --success: #34d399;
-      --warning: #fbbf24;
-      --error: #fb7185;
-      --accent: #a78bfa;
-      --accent-hover: #bfa8ff;
-      --accent-bg: #2a2340;
+      color-scheme: light;
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --surface-2: #f1f5f9;
+      --surface-3: #e2e8f0;
+      --border: #e2e8f0;
+      --border-focus: #4f46e5;
+      --text: #0f172a;
+      --text-secondary: #334155;
+      --muted: #64748b;
+      --success: #10b981;
+      --success-bg: #ecfdf5;
+      --success-border: #a7f3d0;
+      --warning: #f59e0b;
+      --warning-bg: #fffbeb;
+      --error: #ef4444;
+      --error-bg: #fef2f2;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-bg: #eef2ff;
+      --accent-border: #c7d2fe;
     }
 
     * { box-sizing: border-box; }
@@ -31,40 +39,42 @@
       background: var(--bg);
       color: var(--text);
       font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
 
-    .shell { padding: 16px; }
+    .shell { padding: 14px 16px 16px; }
 
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 9px;
       text-decoration: none;
     }
 
     .brand-icon {
-      width: 32px;
-      height: 32px;
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      border-radius: 7px;
       flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
     }
 
     .brand-text {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      gap: 1px;
     }
 
     .brand-logo {
-      height: 20px;
+      height: 18px;
       width: auto;
       object-fit: contain;
       display: block;
@@ -74,72 +84,91 @@
       color: var(--muted);
       font-size: 10px;
       font-weight: 500;
+      line-height: 1;
     }
 
     .overall-status {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 5px 9px;
+      padding: 4px 9px;
       border: 1px solid var(--border);
       border-radius: 999px;
+      background: var(--surface);
       color: var(--muted);
       font-size: 11px;
       font-weight: 600;
       user-select: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
 
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-    .overall-status.good .dot { background: var(--success); box-shadow: 0 0 8px #34d39966; }
+    .overall-status.good .dot { background: var(--success); box-shadow: 0 0 6px #10b98188; }
+    .overall-status.good { color: #047857; border-color: var(--success-border); background: var(--success-bg); }
     .overall-status.warn .dot { background: var(--warning); }
+    .overall-status.warn { color: #b45309; border-color: #fde68a; background: var(--warning-bg); }
     .overall-status.bad  .dot { background: var(--error); }
+    .overall-status.bad  { color: #b91c1c; border-color: #fecaca; background: var(--error-bg); }
 
     .tabs {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4px;
-      padding: 4px;
-      margin-bottom: 14px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 3px;
+      padding: 3px;
+      margin-bottom: 12px;
       border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
+      border-radius: 9px;
+      background: #f1f5f9;
     }
 
     .tab {
       border: 0;
-      border-radius: 7px;
-      padding: 8px;
+      border-radius: 6px;
+      padding: 7px 6px;
       background: transparent;
       color: var(--muted);
       cursor: pointer;
       font: inherit;
+      font-size: 12px;
       font-weight: 600;
-      transition: background 0.15s, color 0.15s;
+      text-align: center;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
     }
 
     .tab:hover { color: var(--text); }
-    .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-    .tab.active { background: var(--surface-2); color: var(--text); }
+    .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .tab.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
     .panel[hidden] { display: none; }
 
     .card {
       overflow: hidden;
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 10px;
       background: var(--surface);
-      margin-bottom: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
     }
 
     .card-title {
-      padding: 11px 12px 8px;
+      padding: 10px 12px 6px;
       color: var(--muted);
       font-size: 10px;
       font-weight: 700;
-      letter-spacing: .08em;
+      letter-spacing: .06em;
       text-transform: uppercase;
     }
 
     /* Active Video Card */
+    .active-video-card {
+      border-color: #cbd5e1;
+      background: #ffffff;
+    }
+
     .active-video-body {
       padding: 0 12px 12px;
       display: flex;
@@ -168,7 +197,7 @@
       display: inline-block;
       padding: 2px 7px;
       border-radius: 999px;
-      background: #dc2626;
+      background: #ef4444;
       color: #ffffff;
       font-size: 9px;
       font-weight: 700;
@@ -182,39 +211,41 @@
       width: 100%;
       padding: 8px 12px;
       border: 1px solid #059669;
-      border-radius: 8px;
-      background: #064e3b;
-      color: #ecfdf5;
+      border-radius: 7px;
+      background: #10b981;
+      color: #ffffff;
       cursor: pointer;
       font: inherit;
       font-size: 12px;
       font-weight: 650;
-      transition: background 0.15s, border-color 0.15s;
+      box-shadow: 0 1px 2px rgba(16,185,129,0.2);
+      transition: background 0.15s, transform 0.1s;
     }
 
-    .active-download-btn:hover { background: #047857; border-color: #10b981; }
-    .active-download-btn:focus-visible { outline: 2px solid #34d399; }
-    .active-download-btn:disabled { opacity: 0.6; cursor: wait; }
+    .active-download-btn:hover { background: #059669; }
+    .active-download-btn:active { transform: scale(0.99); }
+    .active-download-btn:focus-visible { outline: 2px solid #059669; }
+    .active-download-btn:disabled { opacity: 0.65; cursor: wait; }
 
     .health-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 14px;
-      min-height: 40px;
-      padding: 9px 12px;
+      gap: 12px;
+      min-height: 38px;
+      padding: 8px 12px;
       border-top: 1px solid var(--border);
     }
 
-    .health-label { font-weight: 500; }
+    .health-label { font-weight: 500; font-size: 12px; color: var(--text-secondary); }
     .health-value { color: var(--muted); font-size: 11px; text-align: right; }
-    .health-value.good { color: var(--success); font-weight: 600; }
-    .health-value.warn { color: var(--warning); }
-    .health-value.bad  { color: var(--error); font-weight: 600; }
+    .health-value.good { color: #047857; font-weight: 600; }
+    .health-value.warn { color: #b45309; }
+    .health-value.bad  { color: #b91c1c; font-weight: 600; }
 
     .folder {
       display: block;
-      padding: 0 12px 12px;
+      padding: 0 12px 10px;
       color: var(--muted);
       font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
       overflow-wrap: anywhere;
@@ -222,51 +253,93 @@
 
     .test-button {
       width: 100%;
-      padding: 10px 12px;
-      border: 1px solid #6d5ea9;
-      border-radius: 9px;
-      background: var(--accent-bg);
-      color: #eee9ff;
+      padding: 9px 12px;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      background: var(--accent);
+      color: #ffffff;
       cursor: pointer;
       font: inherit;
+      font-size: 12px;
       font-weight: 650;
+      box-shadow: 0 1px 2px rgba(79,70,229,0.2);
       transition: background 0.15s;
     }
 
-    .test-button:hover    { background: #352b51; }
+    .test-button:hover    { background: var(--accent-hover); }
     .test-button:focus-visible { outline: 2px solid var(--accent); }
     .test-button:disabled { cursor: wait; opacity: .65; }
-    .checked-time { margin: 7px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
+    .checked-time { margin: 6px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
 
     .setting-card  { padding: 12px; }
-    .setting-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+    .setting-title { margin: 0 0 7px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
 
-    .options { display: grid; gap: 5px; }
+    .options { display: grid; gap: 4px; }
     .option {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 10px;
+      padding: 7px 10px;
       border: 1px solid transparent;
-      border-radius: 8px;
-      color: var(--muted);
+      border-radius: 7px;
+      color: var(--text-secondary);
       cursor: pointer;
-      transition: background 0.12s, color 0.12s;
+      transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
 
     .option:hover  { background: var(--surface-2); color: var(--text); }
     .option:focus-visible { outline: 2px solid var(--accent); }
-    .option.active { border-color: #514474; background: #282238; color: var(--text); font-weight: 500; }
+    .option.active {
+      border-color: var(--accent-border);
+      background: var(--accent-bg);
+      color: var(--accent);
+      font-weight: 600;
+    }
     .option-meta   { font-size: 10px; color: var(--muted); }
 
-    .toggle-row          { display: flex; align-items: center; justify-content: space-between; }
-    .setting-description { color: var(--muted); font-size: 11px; }
-    .switch   { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 12px;
+      border-top: 1px solid var(--border);
+    }
+    .toggle-row:first-of-type { border-top: 0; }
+
+    .toggle-text { flex: 1; }
+    .toggle-title { font-weight: 550; font-size: 12px; color: var(--text); }
+    .toggle-description { color: var(--muted); font-size: 11px; margin-top: 1px; }
+
+    .switch {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider   { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; transition: background .18s; }
-    .slider::before { content: ""; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: #a5aab4; transition: .18s; }
-    .switch input:checked + .slider             { background: #66538e; }
-    .switch input:checked + .slider::before     { transform: translateX(16px); background: white; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      border-radius: 999px;
+      background: #cbd5e1;
+      cursor: pointer;
+      transition: background .18s;
+    }
+    .slider::before {
+      content: "";
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      top: 3px;
+      left: 3px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      transition: transform .18s;
+    }
+    .switch input:checked + .slider             { background: var(--accent); }
+    .switch input:checked + .slider::before     { transform: translateX(16px); }
     .switch input:focus-visible + .slider       { outline: 2px solid var(--accent); }
   </style>
 </head>
@@ -289,11 +362,13 @@
     <nav class="tabs" role="tablist" aria-label="Popup sections">
       <button class="tab active" type="button" role="tab" id="tab-status" aria-selected="true" aria-controls="status-panel" data-panel="status-panel">Status</button>
       <button class="tab" type="button" role="tab" id="tab-settings" aria-selected="false" aria-controls="settings-panel" data-panel="settings-panel">Settings</button>
+      <button class="tab" type="button" role="tab" id="tab-yt" aria-selected="false" aria-controls="yt-panel" data-panel="yt-panel">YT Tools</button>
     </nav>
 
     <main>
+      <!-- Panel 1: Status & Connection -->
       <section class="panel" id="status-panel" role="tabpanel" aria-labelledby="tab-status">
-        <!-- Active Video Card (visible when on a supported site) -->
+        <!-- Active Video Card (visible when on YouTube / Hotstar) -->
         <div class="card active-video-card" id="active-video-card" hidden>
           <div class="card-title">Active Video</div>
           <div class="active-video-body">
@@ -333,6 +408,7 @@
         <div class="checked-time" id="checked-time" aria-live="polite"></div>
       </section>
 
+      <!-- Panel 2: Downloader Settings -->
       <section class="panel" id="settings-panel" role="tabpanel" aria-labelledby="tab-settings" hidden>
         <div class="card setting-card">
           <h2 class="setting-title" id="mode-label">Download mode</h2>
@@ -355,15 +431,57 @@
           </div>
         </div>
 
-        <div class="card setting-card toggle-row">
-          <div>
-            <div>Load cookies</div>
-            <div class="setting-description">Include the configured cookie file</div>
+        <div class="card">
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Load cookies</div>
+              <div class="toggle-description">Include cookies-yt.txt or cookies-jhs.txt</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="cookies-toggle" aria-label="Load cookies">
+              <span class="slider"></span>
+            </label>
           </div>
-          <label class="switch">
-            <input type="checkbox" id="cookies-toggle" aria-label="Load cookies">
-            <span class="slider"></span>
-          </label>
+        </div>
+      </section>
+
+      <!-- Panel 3: YouTube Enhancements (Userscript Tools) -->
+      <section class="panel" id="yt-panel" role="tabpanel" aria-labelledby="tab-yt" hidden>
+        <div class="card">
+          <div class="card-title">YouTube Power Tools</div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Cinematic Crop (2.39:1)</div>
+              <div class="toggle-description">Crop black bars on ultrawide videos (Alt+C)</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-cinematic-crop" aria-label="Toggle Cinematic Crop">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Block Ambient Glow</div>
+              <div class="toggle-description">Hide glowing borders and legacy annotations</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-block-ambient" aria-label="Toggle Block Ambient Glow">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="toggle-row">
+            <div class="toggle-text">
+              <div class="toggle-title">Channel 'Videos' Tab First</div>
+              <div class="toggle-description">Direct channel links to /videos automatically</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggle-channel-videos" aria-label="Toggle Channel Videos First">
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
       </section>
     </main>

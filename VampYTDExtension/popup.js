@@ -2,7 +2,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULTS = {
     downloadMode: 'interactive',
     preferredCodec: 'auto',
-    enableCookies: false
+    enableCookies: false,
+    enableCinematicCrop: true,
+    enableBlockAmbient: true,
+    enableChannelVideos: true
   };
 
   const overallStatus = document.getElementById('overall-status');
@@ -13,10 +16,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const codecSelector = document.getElementById('codec-selector');
   const cookiesToggle = document.getElementById('cookies-toggle');
 
-  const activeVideoCard  = document.getElementById('active-video-card');
-  const activeVideoTitle = document.getElementById('active-video-title');
-  const activeVideoBadge = document.getElementById('active-video-badge');
+  const activeVideoCard   = document.getElementById('active-video-card');
+  const activeVideoTitle  = document.getElementById('active-video-title');
+  const activeVideoBadge  = document.getElementById('active-video-badge');
   const activeDownloadBtn = document.getElementById('active-download-btn');
+
+  // YT Enhancements switches
+  const toggleCinematicCrop = document.getElementById('toggle-cinematic-crop');
+  const toggleBlockAmbient   = document.getElementById('toggle-block-ambient');
+  const toggleChannelVideos  = document.getElementById('toggle-channel-videos');
 
   let currentTabUrl = '';
 
@@ -119,7 +127,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isSupported && activeVideoCard) {
         activeVideoCard.hidden = false;
-        // Clean title
         let cleanTitle = activeTab.title || 'Active video';
         cleanTitle = cleanTitle.replace(/\s*-\s*YouTube$/, '').replace(/\s*\|\s*Hotstar$/, '');
         activeVideoTitle.textContent = cleanTitle;
@@ -161,6 +168,19 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- Broadcast setting updates to active tab ---
+  function broadcastSettingsUpdate(patch) {
+    chrome.tabs?.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = tabs?.[0];
+      if (activeTab?.id) {
+        chrome.tabs.sendMessage(activeTab.id, {
+          action: 'settingsUpdated',
+          settings: patch
+        }).catch(() => {});
+      }
+    });
+  }
+
   // --- Tab switching with Keyboard Navigation ---
   const tabs = Array.from(document.querySelectorAll('.tab'));
 
@@ -198,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // --- Setting Selectors (Radio Groups with ARIA + Keyboard Support) ---
+  // --- Radio Groups with ARIA + Keyboard Navigation ---
   function setupRadioGroup(container, settingKey, attrKey) {
     const options = Array.from(container.querySelectorAll('.option'));
 
@@ -253,11 +273,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const savedCodecEl = codecSelector.querySelector(`[data-codec="${items.preferredCodec}"]`);
     if (savedCodecEl) setCodecOption(savedCodecEl);
+
+    // YT Enhancements toggles
+    if (toggleCinematicCrop) toggleCinematicCrop.checked = Boolean(items.enableCinematicCrop);
+    if (toggleBlockAmbient)   toggleBlockAmbient.checked   = Boolean(items.enableBlockAmbient);
+    if (toggleChannelVideos)  toggleChannelVideos.checked  = Boolean(items.enableChannelVideos);
   });
 
+  // --- Settings Listeners ---
   cookiesToggle.addEventListener('change', () => {
     chrome.storage.local.set({ enableCookies: cookiesToggle.checked });
   });
+
+  if (toggleCinematicCrop) {
+    toggleCinematicCrop.addEventListener('change', () => {
+      const val = toggleCinematicCrop.checked;
+      chrome.storage.local.set({ enableCinematicCrop: val });
+      broadcastSettingsUpdate({ enableCinematicCrop: val });
+    });
+  }
+
+  if (toggleBlockAmbient) {
+    toggleBlockAmbient.addEventListener('change', () => {
+      const val = toggleBlockAmbient.checked;
+      chrome.storage.local.set({ enableBlockAmbient: val });
+      broadcastSettingsUpdate({ enableBlockAmbient: val });
+    });
+  }
+
+  if (toggleChannelVideos) {
+    toggleChannelVideos.addEventListener('change', () => {
+      const val = toggleChannelVideos.checked;
+      chrome.storage.local.set({ enableChannelVideos: val });
+      broadcastSettingsUpdate({ enableChannelVideos: val });
+    });
+  }
 
   testButton.addEventListener('click', runDiagnostics);
 
