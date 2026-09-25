@@ -21,9 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeVideoBadge  = document.getElementById('active-video-badge');
   const activeDownloadBtn = document.getElementById('active-download-btn');
 
-  const toolsStatus     = document.getElementById('tools-status');
-  const toolsSummary    = document.getElementById('tools-summary');
-  const toolsDetails    = document.getElementById('tools-details');
+  const toolsStatus  = document.getElementById('tools-status');
+  const toolsSummary = document.getElementById('tools-summary');
+  const toolsDetails = document.getElementById('tools-details');
+
+  const copyFolderBtn = document.getElementById('btn-copy-folder');
+  const copyLabel     = document.getElementById('copy-label');
+  const folderEl      = document.getElementById('download-folder');
 
   // YT Enhancements switches
   const toggleCinematicCrop = document.getElementById('toggle-cinematic-crop');
@@ -100,12 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         toolsStatus.textContent = 'Attention';
         toolsStatus.className = 'status-pill warn';
-        toolsSummary.textContent = 'One or more required tools missing';
+        toolsSummary.textContent = 'One or more tools require setup';
         if (toolsDetails) toolsDetails.open = true; // Auto-expand when attention is needed
       }
     }
 
-    const folderEl = document.getElementById('download-folder');
     if (folderEl) {
       folderEl.textContent = details?.downloadDir || 'Unavailable until bridge connects';
     }
@@ -133,7 +136,25 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // --- Active Tab Video Detection ---
+  // --- Copy Folder Path to Clipboard ---
+  function copyFolderPath() {
+    const rawPath = folderEl?.textContent;
+    if (!rawPath || rawPath.startsWith('Unavailable') || rawPath.startsWith('Checking')) return;
+
+    navigator.clipboard.writeText(rawPath).then(() => {
+      if (copyLabel) copyLabel.textContent = 'Copied!';
+      copyFolderBtn?.classList.add('copied');
+      setTimeout(() => {
+        if (copyLabel) copyLabel.textContent = 'Copy';
+        copyFolderBtn?.classList.remove('copied');
+      }, 2000);
+    }).catch(() => {});
+  }
+
+  if (copyFolderBtn) copyFolderBtn.addEventListener('click', copyFolderPath);
+  if (folderEl) folderEl.addEventListener('click', copyFolderPath);
+
+  // --- Active Tab Video & Theme Detection ---
   function inspectActiveTab() {
     if (!chrome.tabs?.query) return;
 
@@ -154,6 +175,13 @@ document.addEventListener('DOMContentLoaded', () => {
             isSupported = true;
             siteName = u.pathname.startsWith('/shorts/') ? 'Shorts' : 'YouTube';
           }
+
+          // Check if YouTube is currently in Dark Mode to match automatically
+          chrome.tabs.sendMessage(activeTab.id, { action: 'getTheme' }, (res) => {
+            if (!chrome.runtime.lastError && res?.isDark) {
+              document.documentElement.dataset.theme = 'dark';
+            }
+          });
         } else if (host.includes('hotstar.com') || host.includes('jiohotstar.com')) {
           isSupported = true;
           siteName = 'Hotstar';
@@ -198,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
           activeDownloadBtn.disabled = false;
           activeDownloadBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
-            <span>Download with VampYTD</span>
+            <span>Download Video</span>
           `;
           activeDownloadBtn.style.background = '';
         }, 2200);
@@ -257,8 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // --- Radio Groups with ARIA + Keyboard Navigation ---
-  function setupRadioGroup(container, settingKey, attrKey) {
-    const options = Array.from(container.querySelectorAll('.option-chip'));
+  function setupRadioGroup(container, itemSelector, settingKey, attrKey) {
+    const options = Array.from(container.querySelectorAll(itemSelector));
 
     function selectOption(option) {
       options.forEach((o) => {
@@ -271,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     container.addEventListener('click', (event) => {
-      const option = event.target.closest('.option-chip');
+      const option = event.target.closest(itemSelector);
       if (option) selectOption(option);
     });
 
@@ -285,7 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         nextOption = options[(idx - 1 + options.length) % options.length];
       } else if (e.key === ' ' || e.key === 'Enter') {
-        const focused = document.activeElement.closest('.option-chip');
+        const focused = document.activeElement.closest(itemSelector);
         if (focused) nextOption = focused;
       }
 
@@ -299,8 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return selectOption;
   }
 
-  const setModeOption  = setupRadioGroup(modeSelector, 'downloadMode', 'mode');
-  const setCodecOption = setupRadioGroup(codecSelector, 'preferredCodec', 'codec');
+  const setModeOption  = setupRadioGroup(modeSelector, '.option-chip', 'downloadMode', 'mode');
+  const setCodecOption = setupRadioGroup(codecSelector, '.codec-chip', 'preferredCodec', 'codec');
 
   // --- Restore Saved Settings ---
   chrome.storage.local.get(DEFAULTS, (items) => {

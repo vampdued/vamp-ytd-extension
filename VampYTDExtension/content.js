@@ -624,9 +624,15 @@ chrome.storage.local.get(settings, (items) => {
     }
 });
 
-// React to setting changes broadcast from popup
-chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action === 'toast') {
+// React to setting changes broadcast from popup & theme requests
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+    if (msg.action === 'getTheme') {
+        const isDark = document.documentElement.hasAttribute('dark') ||
+                       document.documentElement.getAttribute('theme') === 'dark' ||
+                       document.body?.classList?.contains('dark-theme');
+        sendResponse({ isDark: Boolean(isDark) });
+        return true;
+    } else if (msg.action === 'toast') {
         showFloatingToast(msg.ok, msg.message);
     } else if (msg.action === 'settingsUpdated' && msg.settings) {
         settings = { ...settings, ...msg.settings };
