@@ -35,6 +35,11 @@ archives:
       - deploy.ps1
       - uninstall.ps1
       - VampYTDExtension/**/*
+      - "!VampYTDExtension/manifest.firefox.json"
+      - "!dev.cmd"
+      - "!setup-dev.ps1"
+      - "!build.cmd"
+      - "!build.ps1"
 
 checksum:
   name_template: checksums.txt

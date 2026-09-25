@@ -21,11 +21,15 @@ if (-not $goPath) {
 
 Push-Location $WorkspaceDir
 try {
+    Write-Host "Running unit tests..." -ForegroundColor Gray
+    & $goPath test ./...
+    if ($LASTEXITCODE -ne 0) { throw "Unit tests failed with exit code $LASTEXITCODE." }
+
     & $goPath build -o (Join-Path $WorkspaceDir "ytd.exe") ./cmd/ytd
     if ($LASTEXITCODE -ne 0) { throw "Building ytd.exe failed." }
     & $goPath build -o (Join-Path $WorkspaceDir "bridge.exe") ./cmd/bridge
     if ($LASTEXITCODE -ne 0) { throw "Building bridge.exe failed." }
-    Write-Host "Binaries compiled successfully in $WorkspaceDir" -ForegroundColor Green
+    Write-Host "Unit tests passed and binaries compiled successfully in $WorkspaceDir" -ForegroundColor Green
 } finally {
     Pop-Location
 }

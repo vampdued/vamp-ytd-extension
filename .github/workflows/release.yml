@@ -2,8 +2,11 @@ name: Release
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,22 +20,43 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
-      - name: Verify release metadata
+
+      - name: Verify release metadata and ensure tag
         shell: bash
         run: |
           test -f LICENSE || { echo "LICENSE is required for a public release"; exit 1; }
           manifest_version="$(node -p "require('./VampYTDExtension/manifest.json').version")"
-          tag_version="${GITHUB_REF_NAME#v}"
-          test "${manifest_version}" = "${tag_version}" || {
-            echo "Extension version ${manifest_version} does not match tag ${GITHUB_REF_NAME}"
-            exit 1
-          }
+          target_tag="v${manifest_version}"
+          echo "Target tag: ${target_tag}"
+
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            tag_version="${GITHUB_REF_NAME#v}"
+            test "${manifest_version}" = "${tag_version}" || {
+              echo "Extension version ${manifest_version} does not match tag ${GITHUB_REF_NAME}"
+              exit 1
+            }
+          else
+            if git rev-parse "${target_tag}" >/dev/null 2>&1; then
+              echo "Tag ${target_tag} already exists."
+              git checkout "${target_tag}"
+            else
+              echo "Creating new release tag ${target_tag}..."
+              git config user.name "github-actions[bot]"
+              git config user.email "github-actions[bot]@users.noreply.github.com"
+              git tag -a "${target_tag}" -m "Release ${target_tag}"
+              git push origin "${target_tag}"
+              git checkout "${target_tag}"
+            fi
+          fi
+
       - name: Test
         run: go test ./...
+
       - name: Create release artifacts
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -41,6 +65,7 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Attest checksums
         uses: actions/attest@v4
         with:

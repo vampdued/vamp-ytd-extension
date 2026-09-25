@@ -30,18 +30,14 @@ VampYTD is a Windows-first video downloader with a companion browser extension f
 2. Extract the complete ZIP archive.
 3. Double-click `Install-VampYTD.cmd`.
 4. Activate the extension in your browser:
-   - **Chrome / Edge / Brave / Vivaldi**: Open `chrome://extensions` (or `edge://extensions`), enable **Developer mode**, click **Load unpacked**, and paste/select the extension folder (path auto-copied to clipboard).
-   - **Firefox**:
-     - *Method 1 (All versions - Developer / Temporary)*: Open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on...**, and select `manifest.json` inside `%LOCALAPPDATA%\VampYTD\VampYTDExtension-Firefox`.
-     - *Method 2 (Dev Edition / ESR / Unbranded)*: Open `about:addons`, click the gear icon, click **Install Add-on From File...**, and select `%LOCALAPPDATA%\VampYTD\VampYTD-Extension.xpi` (requires `xpinstall.signatures.required=false` in `about:config`).
+   - **Chrome / Edge / Brave / Vivaldi**: Open `chrome://extensions` (or `edge://extensions` / `brave://extensions`), enable **Developer mode**, click **Load unpacked**, and select the extension folder (path auto-copied to clipboard).
 
 The double-click installer:
 
 - installs missing `yt-dlp`, FFmpeg, Node.js, and FZF packages automatically via Windows Package Manager (`winget`);
-- installs VampYTD under `%LOCALAPPDATA%\VampYTD`;
-- packages `VampYTD-Extension.xpi` and `VampYTD-Extension.zip` for Firefox;
+- installs pre-built VampYTD binaries under `%LOCALAPPDATA%\VampYTD`;
 - adds the `ytd` command-line downloader to your user `PATH`;
-- registers native messaging for Chrome, Edge, Chromium, Brave, Vivaldi, and Firefox;
+- registers native messaging for Chrome, Edge, Chromium, Brave, and Vivaldi;
 - copies the unpacked extension folder path directly to your clipboard.
 
 Administrator access is not required. Run `Install-VampYTD.cmd` again at any time to repair or update the installation.
@@ -186,6 +182,8 @@ spec.md             downloader technical specification
 
 ## Release process
 
-Windows AMD64 and ARM64 ZIP archives are generated automatically upon pushing a semantic version tag (e.g. `v1.4.0`).
+GitHub Releases are completely automated via GitHub Actions:
+- Merging code into **`main`** with an updated version in `VampYTDExtension/manifest.json` automatically creates the release tag, builds Windows AMD64 and ARM64 ZIP archives with GoReleaser, generates checksums, and publishes the release.
+- Releases can also be triggered manually using the **Run workflow** button in the GitHub Actions `Release` tab.
 
 VampYTD is released under the [MIT License](LICENSE).
