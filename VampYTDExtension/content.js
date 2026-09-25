@@ -33,7 +33,7 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
             const runtimeError = chrome.runtime.lastError;
 
             if (runtimeError) {
-                const needsReload = runtimeError.message && runtimeError.message.toLowerCase().includes('context invalidated');
+                const needsReload = runtimeError.message?.toLowerCase().includes('context invalidated');
                 showResult(false, needsReload ? 'Reload page' : 'Extension error');
                 return;
             }
@@ -49,35 +49,29 @@ function triggerDownload(url, buttonElement, originalContent, isThumbnail) {
 
 // --- 1. Video Watch Page Button ---
 function injectWatchPageButton() {
-    // Locate the right-side actions container (Share, Thanks, etc.)
-    const menuContainer = document.querySelector('ytd-watch-metadata #top-level-buttons-computed') || 
-                          document.querySelector('ytd-menu-renderer #top-level-buttons-computed');
+    const menuContainer =
+        document.querySelector('ytd-watch-metadata #top-level-buttons-computed') ||
+        document.querySelector('ytd-menu-renderer #top-level-buttons-computed');
 
     if (!menuContainer) return;
 
-    // Fix for YouTube SPA navigation: check if the button is already inside this ACTIVE container
+    // Avoid duplicate injection into the same live container.
     if (menuContainer.querySelector('#vampytd-watch-btn')) return;
 
-    // Clean up any orphaned watch buttons that may be detached from previous pages
-    document.querySelectorAll('#vampytd-watch-btn').forEach(orphan => {
-        if (!menuContainer.contains(orphan)) {
-            orphan.remove();
-        }
+    // Remove any orphaned buttons from previous SPA navigations.
+    document.querySelectorAll('#vampytd-watch-btn').forEach((orphan) => {
+        if (!menuContainer.contains(orphan)) orphan.remove();
     });
 
-    // Mirror YouTube's modern tonal, icon-leading action-button markup.  This lets
-    // the button inherit YouTube's theme, hover, touch-feedback, and responsive UI.
     const buttonModel = document.createElement('yt-button-view-model');
     buttonModel.id = 'vampytd-watch-btn';
     buttonModel.className = 'ytd-menu-renderer';
-    // Native action groups are separated by 8px.  The injected model does not
-    // receive YouTube's renderer-generated spacing, so provide that gap here.
     buttonModel.style.marginRight = '8px';
     buttonModel.innerHTML = `
-            <button-view-model class="ytSpecButtonViewModelHost style-scope ytd-menu-renderer">
-            <button type="button" class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="" aria-label="Download with VampYTD" aria-disabled="false">
-                ${createWatchButtonContent(downloadIconSvg, 'VampYTD')}
-            </button>
+        <button-view-model class="ytSpecButtonViewModelHost style-scope ytd-menu-renderer">
+        <button type="button" class="ytSpecButtonShapeNextHost ytSpecButtonShapeNextTonal ytSpecButtonShapeNextMono ytSpecButtonShapeNextSizeM ytSpecButtonShapeNextIconLeading ytSpecButtonShapeNextEnableBackdropFilterExperiment" title="" aria-label="Download with VampYTD" aria-disabled="false">
+            ${createWatchButtonContent(downloadIconSvg, 'VampYTD')}
+        </button>
         </button-view-model>`;
 
     const btn = buttonModel.querySelector('button');
@@ -90,7 +84,6 @@ function injectWatchPageButton() {
         triggerDownload(window.location.href, btn, originalContent, false);
     }, true);
 
-    // Insert exactly at the start of the action buttons (before Like).
     menuContainer.insertBefore(buttonModel, menuContainer.firstChild);
 }
 
@@ -102,21 +95,90 @@ function createWatchButtonContent(icon, label) {
         <yt-light-shape aria-hidden="true" class="contribYtLightShapeHost contribYtLightShapeStaticRimLight contribYtLightShapeStaticRimLightTonal"><div class="contribYtLightShapeStaticWashLight contribYtLightShapeStaticWashLightTonal"></div></yt-light-shape>`;
 }
 
-// --- Dynamic Page Observer ---
-// YouTube dynamically loads content without full page reloads.
-const observer = new MutationObserver(() => {
-    // Inject into the watch page if we are viewing a video
-    if (window.location.pathname === '/watch') {
+// --- 2. YouTube Shorts Button ---
+function injectShortsButton() {
+    // The Shorts action panel lives inside ytd-reel-video-renderer (active slide).
+    const actionPanel =
+        document.querySelector('ytd-reel-video-renderer[is-active] #actions') ||
+        document.querySelector('ytd-shorts #actions');
+
+    if (!actionPanel) return;
+    if (actionPanel.querySelector('#vampytd-shorts-btn')) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'vampytd-shorts-btn';
+    btn.type = 'button';
+    btn.setAttribute('aria-label', 'Download Short with VampYTD');
+    btn.title = 'Download with VampYTD';
+    btn.innerHTML = downloadIconSvg;
+
+    // Mirror the visual style of other Shorts action buttons.
+    Object.assign(btn.style, {
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '48px',
+        height: '48px',
+        borderRadius: '50%',
+        border: 'none',
+        background: 'rgba(255,255,255,0.1)',
+        color: '#fff',
+        cursor: 'pointer',
+        margin: '8px 0',
+        backdropFilter: 'blur(4px)',
+        transition: 'background 0.15s'
+    });
+
+    btn.addEventListener('mouseenter', () => { btn.style.background = 'rgba(255,255,255,0.2)'; });
+    btn.addEventListener('mouseleave', () => { btn.style.background = 'rgba(255,255,255,0.1)'; });
+
+    const originalContent = downloadIconSvg;
+
+    btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        triggerDownload(window.location.href, btn, originalContent, true);
+    });
+
+    // Append after the last existing action button.
+    actionPanel.appendChild(btn);
+}
+
+// --- Route injection based on current page ---
+function injectForCurrentPage() {
+    const path = window.location.pathname;
+    if (path === '/watch') {
         injectWatchPageButton();
+    } else if (path.startsWith('/shorts/')) {
+        injectShortsButton();
     }
+}
+
+// --- Debounced MutationObserver ---
+// Batching DOM mutations with a short debounce avoids saturating the main
+// thread during heavy YouTube SPA renders (e.g. homepage scroll, feed loads).
+let debounceTimer = null;
+
+const observer = new MutationObserver(() => {
+    if (debounceTimer !== null) return; // already scheduled
+    debounceTimer = setTimeout(() => {
+        debounceTimer = null;
+        injectForCurrentPage();
+    }, 150);
 });
 
-// Start the observer
 observer.observe(document.body, { childList: true, subtree: true });
 
-// Listen directly to YouTube's SPA navigation complete event
+// Listen to YouTube's own SPA navigation-complete event for fast, reliable
+// injection without relying solely on DOM mutations after a page change.
 window.addEventListener('yt-navigate-finish', () => {
-    if (window.location.pathname === '/watch') {
-        injectWatchPageButton();
+    // Cancel any pending debounce and inject immediately after navigation.
+    if (debounceTimer !== null) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
     }
+    injectForCurrentPage();
 });
+
+// Initial injection on script load (handles hard page loads / reloads).
+injectForCurrentPage();

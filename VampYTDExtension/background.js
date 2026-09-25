@@ -1,8 +1,23 @@
 const NATIVE_HOST = 'com.vampytd.bridge';
+const NATIVE_TIMEOUT_MS = 10_000;
 
+// Wraps chrome.runtime.sendNativeMessage with a hard timeout so the service
+// worker never silently hangs waiting for a response that will never arrive.
 function sendNative(payload) {
     return new Promise((resolve, reject) => {
+        let settled = false;
+
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error('Native host timed out'));
+        }, NATIVE_TIMEOUT_MS);
+
         chrome.runtime.sendNativeMessage(NATIVE_HOST, payload, (response) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+
             if (chrome.runtime.lastError) {
                 reject(new Error(chrome.runtime.lastError.message));
                 return;
@@ -16,52 +31,7 @@ function sendNative(payload) {
     });
 }
 
-async function sendHttpFallback(payload) {
-    const response = await fetch('http://localhost:8080/download', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
-    });
-    if (!response.ok) {
-        throw new Error((await response.text()) || `Bridge returned status ${response.status}`);
-    }
-    return { ok: true, transport: 'http' };
-}
-
-async function getHttpDiagnostics() {
-    const response = await fetch('http://localhost:8080/diagnostics');
-    if (!response.ok) {
-        throw new Error(`Bridge returned status ${response.status}`);
-    }
-    return response.json();
-}
-
-async function getDiagnostics() {
-    const [nativeResult, httpResult] = await Promise.allSettled([
-        sendNative({ action: 'ping' }),
-        getHttpDiagnostics()
-    ]);
-
-    const nativeOK = nativeResult.status === 'fulfilled';
-    const httpOK = httpResult.status === 'fulfilled' && Boolean(httpResult.value?.ok);
-    const details = nativeOK ? nativeResult.value : (httpOK ? httpResult.value : null);
-
-    return {
-        ok: nativeOK || httpOK,
-        native: nativeOK
-            ? { ok: true }
-            : { ok: false, error: nativeResult.reason?.message || 'Unavailable' },
-        http: httpOK
-            ? { ok: true }
-            : { ok: false, error: httpResult.reason?.message || 'Unavailable' },
-        details
-    };
-}
-
-// Forward URL and stored settings to the native host. HTTP remains as a
-// migration fallback for existing installations.
+// Reads stored settings then dispatches the download payload to the native host.
 function sendToBridge(url) {
     return new Promise((resolve) => {
         chrome.storage.local.get({
@@ -70,7 +40,7 @@ function sendToBridge(url) {
             enableCookies: false
         }, (items) => {
             const payload = {
-                url: url,
+                url,
                 mode: items.downloadMode,
                 codec: items.preferredCodec,
                 cookies: items.enableCookies
@@ -78,76 +48,85 @@ function sendToBridge(url) {
 
             sendNative(payload)
                 .then(() => {
-                    console.log('Download sent through native messaging:', payload);
+                    console.log('[VampYTD] Download dispatched via native messaging:', payload);
                     resolve({ ok: true, transport: 'native' });
                 })
-                .catch(nativeError => {
-                    console.warn('Native messaging unavailable; trying localhost bridge:', nativeError);
-                    sendHttpFallback(payload)
-                        .then(resolve)
-                        .catch(httpError => {
-                            console.error('Both VampYTD transports failed:', httpError);
-                            resolve({
-                                ok: false,
-                                error: `Native: ${nativeError.message}; HTTP: ${httpError.message}`
-                            });
-                        });
+                .catch((err) => {
+                    console.error('[VampYTD] Native messaging failed:', err.message);
+                    resolve({ ok: false, error: err.message });
                 });
         });
     });
 }
 
+// Pings the native host and returns a unified diagnostics object.
+async function getDiagnostics() {
+    try {
+        const result = await sendNative({ action: 'ping' });
+        return {
+            ok: true,
+            native: { ok: true },
+            details: result
+        };
+    } catch (err) {
+        return {
+            ok: false,
+            native: { ok: false, error: err.message },
+            details: null
+        };
+    }
+}
+
 // --- Background Context Menu Setup ---
 chrome.runtime.onInstalled.addListener(() => {
-    // 1. Right-click on a video link
+    // Right-click on a video link
     chrome.contextMenus.create({
-        id: "vampytd-download-link",
-        title: "Download Link with VampYTD",
-        contexts: ["link"],
+        id: 'vampytd-download-link',
+        title: 'Download Link with VampYTD',
+        contexts: ['link'],
         targetUrlPatterns: [
-            "*://*.youtube.com/watch*",
-            "*://*.youtube.com/v/*",
-            "*://*.youtube.com/shorts/*",
-            "*://youtu.be/*",
-            "*://*.hotstar.com/*",
-            "*://*.jiohotstar.com/*"
+            '*://*.youtube.com/watch*',
+            '*://*.youtube.com/v/*',
+            '*://*.youtube.com/shorts/*',
+            '*://youtu.be/*',
+            '*://*.hotstar.com/*',
+            '*://*.jiohotstar.com/*'
         ]
     });
 
-    // 2. Right-click on the active page itself
+    // Right-click on the active page itself
     chrome.contextMenus.create({
-        id: "vampytd-download-page",
-        title: "Download Video on Page",
-        contexts: ["page"],
+        id: 'vampytd-download-page',
+        title: 'Download Video on Page',
+        contexts: ['page'],
         documentUrlPatterns: [
-            "*://*.youtube.com/watch*",
-            "*://*.youtube.com/shorts*",
-            "*://*.hotstar.com/*",
-            "*://*.jiohotstar.com/*"
+            '*://*.youtube.com/watch*',
+            '*://*.youtube.com/shorts*',
+            '*://*.hotstar.com/*',
+            '*://*.jiohotstar.com/*'
         ]
     });
 });
 
-// --- Context Menu Interactions Listener ---
+// --- Context Menu Click Handler ---
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    if (info.menuItemId === "vampytd-download-link" && info.linkUrl) {
+    if (info.menuItemId === 'vampytd-download-link' && info.linkUrl) {
         sendToBridge(info.linkUrl);
-    } else if (info.menuItemId === "vampytd-download-page") {
+    } else if (info.menuItemId === 'vampytd-download-page') {
         sendToBridge(info.pageUrl || tab.url);
     }
 });
 
-// --- Injected Content Action Message Listener ---
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+// --- Message Listener (from content script & popup) ---
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message.action === 'diagnostics') {
         getDiagnostics().then(sendResponse);
-        return true;
+        return true; // keep port open for async response
     }
     if (message.action === 'ping') {
-        getDiagnostics().then(result => sendResponse({
-            ok: result.ok,
-            transport: result.native.ok ? 'native' : (result.http.ok ? 'http' : undefined)
-        }));
+        getDiagnostics().then((result) =>
+            sendResponse({ ok: result.ok, transport: result.native.ok ? 'native' : undefined })
+        );
         return true;
     }
     if (message.action === 'download' && message.url) {

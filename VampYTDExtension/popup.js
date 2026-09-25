@@ -6,19 +6,20 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const overallStatus = document.getElementById('overall-status');
-  const overallText = document.getElementById('overall-text');
-  const testButton = document.getElementById('test-button');
-  const checkedTime = document.getElementById('checked-time');
-  const modeSelector = document.getElementById('mode-selector');
+  const overallText   = document.getElementById('overall-text');
+  const testButton    = document.getElementById('test-button');
+  const checkedTime   = document.getElementById('checked-time');
+  const modeSelector  = document.getElementById('mode-selector');
   const codecSelector = document.getElementById('codec-selector');
   const cookiesToggle = document.getElementById('cookies-toggle');
 
-  document.getElementById('version-text').textContent = `Extension v${chrome.runtime.getManifest().version}`;
+  document.getElementById('version-text').textContent =
+    `Extension v${chrome.runtime.getManifest().version}`;
 
   function setValue(id, text, state = '') {
-    const element = document.getElementById(id);
-    element.textContent = text;
-    element.className = `health-value${state ? ` ${state}` : ''}`;
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = `health-value${state ? ` ${state}` : ''}`;
   }
 
   function renderTool(id, available, optional = false) {
@@ -35,38 +36,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderDiagnostics(result) {
     const nativeOK = Boolean(result?.native?.ok);
-    const httpOK = Boolean(result?.http?.ok);
-    const details = result?.details;
+    const details  = result?.details;
 
     if (nativeOK) {
       overallStatus.className = 'overall-status good';
       overallText.textContent = 'Ready';
       setValue('native-status', 'Connected', 'good');
     } else {
-      setValue('native-status', 'Not connected', 'bad');
-    }
-
-    if (httpOK) {
-      setValue('http-status', nativeOK ? 'Available' : 'In use', nativeOK ? 'good' : 'warn');
-    } else {
-      setValue('http-status', nativeOK ? 'Not running (not needed)' : 'Unavailable', nativeOK ? '' : 'bad');
-    }
-
-    if (!nativeOK && httpOK) {
-      overallStatus.className = 'overall-status warn';
-      overallText.textContent = 'Fallback';
-    } else if (!nativeOK && !httpOK) {
       overallStatus.className = 'overall-status bad';
       overallText.textContent = 'Needs repair';
+      setValue('native-status', result?.native?.error || 'Not connected', 'bad');
     }
 
     renderTool('downloader-status', details?.downloader);
-    renderTool('ytdlp-status', details?.ytDlp);
-    renderTool('ffmpeg-status', details?.ffmpeg);
-    renderTool('node-status', details?.node);
-    renderTool('fzf-status', details?.fzf, true);
-    document.getElementById('download-folder').textContent = details?.downloadDir || 'Unavailable until a bridge connects';
-    checkedTime.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    renderTool('ytdlp-status',      details?.ytDlp);
+    renderTool('ffmpeg-status',     details?.ffmpeg);
+    renderTool('node-status',       details?.node);
+    renderTool('fzf-status',        details?.fzf, true);
+    document.getElementById('download-folder').textContent =
+      details?.downloadDir || 'Unavailable until bridge connects';
+    checkedTime.textContent =
+      `Checked ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
   }
 
   function runDiagnostics() {
@@ -88,32 +78,41 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  document.querySelectorAll('.tab').forEach(tab => {
+  // --- Tab switching ---
+  document.querySelectorAll('.tab').forEach((tab) => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(item => item.classList.toggle('active', item === tab));
-      document.querySelectorAll('.panel').forEach(panel => {
+      document.querySelectorAll('.tab').forEach((t) =>
+        t.classList.toggle('active', t === tab)
+      );
+      document.querySelectorAll('.panel').forEach((panel) => {
         panel.hidden = panel.id !== tab.dataset.panel;
       });
     });
   });
 
-  chrome.storage.local.get(DEFAULTS, items => {
+  // --- Restore saved settings ---
+  chrome.storage.local.get(DEFAULTS, (items) => {
     cookiesToggle.checked = items.enableCookies;
     modeSelector.querySelector(`[data-mode="${items.downloadMode}"]`)?.classList.add('active');
     codecSelector.querySelector(`[data-codec="${items.preferredCodec}"]`)?.classList.add('active');
   });
 
-  modeSelector.addEventListener('click', event => {
+  // --- Persist setting changes ---
+  modeSelector.addEventListener('click', (event) => {
     const option = event.target.closest('.option');
     if (!option) return;
-    modeSelector.querySelectorAll('.option').forEach(item => item.classList.toggle('active', item === option));
+    modeSelector.querySelectorAll('.option').forEach((o) =>
+      o.classList.toggle('active', o === option)
+    );
     chrome.storage.local.set({ downloadMode: option.dataset.mode });
   });
 
-  codecSelector.addEventListener('click', event => {
+  codecSelector.addEventListener('click', (event) => {
     const option = event.target.closest('.option');
     if (!option) return;
-    codecSelector.querySelectorAll('.option').forEach(item => item.classList.toggle('active', item === option));
+    codecSelector.querySelectorAll('.option').forEach((o) =>
+      o.classList.toggle('active', o === option)
+    );
     chrome.storage.local.set({ preferredCodec: option.dataset.codec });
   });
 

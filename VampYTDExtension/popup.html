@@ -61,7 +61,7 @@
     .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
     .overall-status.good .dot { background: var(--success); box-shadow: 0 0 8px #34d39966; }
     .overall-status.warn .dot { background: var(--warning); }
-    .overall-status.bad .dot { background: var(--error); }
+    .overall-status.bad  .dot { background: var(--error); }
 
     .tabs {
       display: grid;
@@ -119,7 +119,7 @@
     .health-value { color: var(--muted); font-size: 11px; text-align: right; }
     .health-value.good { color: var(--success); }
     .health-value.warn { color: var(--warning); }
-    .health-value.bad { color: var(--error); }
+    .health-value.bad  { color: var(--error); }
 
     .folder {
       display: block;
@@ -141,11 +141,11 @@
       font-weight: 650;
     }
 
-    .test-button:hover { background: #352b51; }
+    .test-button:hover    { background: #352b51; }
     .test-button:disabled { cursor: wait; opacity: .65; }
     .checked-time { margin: 7px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
 
-    .setting-card { padding: 12px; }
+    .setting-card  { padding: 12px; }
     .setting-title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 700; }
 
     .options { display: grid; gap: 5px; }
@@ -160,20 +160,18 @@
       cursor: pointer;
     }
 
-    .option:hover { background: var(--surface-2); color: var(--text); }
+    .option:hover  { background: var(--surface-2); color: var(--text); }
     .option.active { border-color: #514474; background: #282238; color: var(--text); }
-    .option-meta { font-size: 10px; color: var(--muted); }
+    .option-meta   { font-size: 10px; color: var(--muted); }
 
-    .toggle-row { display: flex; align-items: center; justify-content: space-between; }
+    .toggle-row         { display: flex; align-items: center; justify-content: space-between; }
     .setting-description { color: var(--muted); font-size: 11px; }
-    .switch { position: relative; width: 38px; height: 22px; }
+    .switch   { position: relative; width: 38px; height: 22px; }
     .switch input { opacity: 0; width: 0; height: 0; }
-    .slider { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; }
+    .slider   { position: absolute; inset: 0; border-radius: 999px; background: #30333a; cursor: pointer; }
     .slider::before { content: ""; position: absolute; width: 16px; height: 16px; top: 3px; left: 3px; border-radius: 50%; background: #a5aab4; transition: .18s; }
-    .switch input:checked + .slider { background: #66538e; }
-    .switch input:checked + .slider::before { transform: translateX(16px); background: white; }
-
-    footer { margin-top: 12px; color: var(--muted); font-size: 10px; text-align: center; }
+    .switch input:checked + .slider             { background: #66538e; }
+    .switch input:checked + .slider::before     { transform: translateX(16px); background: white; }
   </style>
 </head>
 <body>
@@ -194,7 +192,7 @@
 
     <nav class="tabs" aria-label="Popup sections">
       <button class="tab active" type="button" data-panel="status-panel">Status</button>
-      <button class="tab" type="button" data-panel="settings-panel">Settings</button>
+      <button class="tab"        type="button" data-panel="settings-panel">Settings</button>
     </nav>
 
     <main>
@@ -204,10 +202,6 @@
           <div class="health-row">
             <span class="health-label">Native bridge</span>
             <span class="health-value" id="native-status">Checking…</span>
-          </div>
-          <div class="health-row">
-            <span class="health-label">Local fallback</span>
-            <span class="health-value" id="http-status">Checking…</span>
           </div>
         </div>
 
@@ -262,8 +256,6 @@
         </div>
       </section>
     </main>
-
-    <footer>Native messaging is preferred; localhost is only a compatibility fallback.</footer>
   </div>
   <script src="popup.js"></script>
 </body>
