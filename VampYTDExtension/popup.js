@@ -21,6 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const activeVideoBadge  = document.getElementById('active-video-badge');
   const activeDownloadBtn = document.getElementById('active-download-btn');
 
+  const toolsStatus     = document.getElementById('tools-status');
+  const toolsSummary    = document.getElementById('tools-summary');
+  const toolsDetails    = document.getElementById('tools-details');
+
   // YT Enhancements switches
   const toggleCinematicCrop = document.getElementById('toggle-cinematic-crop');
   const toggleBlockAmbient   = document.getElementById('toggle-block-ambient');
@@ -35,18 +39,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = document.getElementById(id);
     if (!el) return;
     el.textContent = text;
-    el.className = `health-value${state ? ` ${state}` : ''}`;
+    el.className = `tool-val${state ? ` ${state}` : ''}`;
   }
 
   function renderTool(id, available, optional = false) {
     if (available === undefined || available === null) {
       setValue(id, 'Unknown');
+      return null;
     } else if (available) {
       setValue(id, 'Ready', 'good');
+      return true;
     } else if (optional) {
-      setValue(id, 'Not installed (optional)', 'warn');
+      setValue(id, 'Optional', 'warn');
+      return true;
     } else {
       setValue(id, 'Missing', 'bad');
+      return false;
     }
   }
 
@@ -54,21 +62,48 @@ document.addEventListener('DOMContentLoaded', () => {
     const nativeOK = Boolean(result?.native?.ok);
     const details  = result?.details;
 
+    const nativeStatusEl = document.getElementById('native-status');
+
     if (nativeOK) {
       overallStatus.className = 'overall-status good';
       overallText.textContent = 'Ready';
-      setValue('native-status', 'Connected', 'good');
+      if (nativeStatusEl) {
+        nativeStatusEl.textContent = 'Connected';
+        nativeStatusEl.className = 'status-pill good';
+      }
     } else {
       overallStatus.className = 'overall-status bad';
       overallText.textContent = 'Needs repair';
-      setValue('native-status', result?.native?.error || 'Not connected', 'bad');
+      if (nativeStatusEl) {
+        nativeStatusEl.textContent = result?.native?.error || 'Offline';
+        nativeStatusEl.className = 'status-pill bad';
+      }
     }
 
-    renderTool('downloader-status', details?.downloader);
-    renderTool('ytdlp-status',      details?.ytDlp);
-    renderTool('ffmpeg-status',     details?.ffmpeg);
-    renderTool('node-status',       details?.node);
-    renderTool('fzf-status',        details?.fzf, true);
+    const tDownloader = renderTool('downloader-status', details?.downloader);
+    const tYtdlp      = renderTool('ytdlp-status',      details?.ytDlp);
+    const tFfmpeg     = renderTool('ffmpeg-status',     details?.ffmpeg);
+    const tNode       = renderTool('node-status',       details?.node);
+    renderTool('fzf-status', details?.fzf, true);
+
+    const allRequiredReady = (tDownloader === true && tYtdlp === true && tFfmpeg === true && tNode === true);
+
+    if (toolsStatus && toolsSummary) {
+      if (!details) {
+        toolsStatus.textContent = 'Checking';
+        toolsStatus.className = 'status-pill';
+        toolsSummary.textContent = 'Detecting dependencies…';
+      } else if (allRequiredReady) {
+        toolsStatus.textContent = 'All Ready';
+        toolsStatus.className = 'status-pill good';
+        toolsSummary.textContent = 'yt-dlp, FFmpeg, Node.js, FZF ready';
+      } else {
+        toolsStatus.textContent = 'Attention';
+        toolsStatus.className = 'status-pill warn';
+        toolsSummary.textContent = 'One or more required tools missing';
+        if (toolsDetails) toolsDetails.open = true; // Auto-expand when attention is needed
+      }
+    }
 
     const folderEl = document.getElementById('download-folder');
     if (folderEl) {
@@ -89,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const runtimeError = chrome.runtime.lastError;
       if (runtimeError) {
         renderDiagnostics(null);
-        checkedTime.textContent = 'Reload the extension and try again';
+        checkedTime.textContent = 'Reload extension and try again';
       } else {
         renderDiagnostics(response);
       }
@@ -145,23 +180,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!currentTabUrl) return;
 
       activeDownloadBtn.disabled = true;
-      activeDownloadBtn.textContent = 'Sending…';
+      activeDownloadBtn.innerHTML = `<span>Sending…</span>`;
 
       chrome.runtime.sendMessage({ action: 'download', url: currentTabUrl }, (response) => {
         const err = chrome.runtime.lastError;
         const ok = !err && Boolean(response?.ok);
 
         if (ok) {
-          activeDownloadBtn.textContent = '✓ Sent to VampYTD';
+          activeDownloadBtn.innerHTML = `<span>✓ Sent to VampYTD</span>`;
           activeDownloadBtn.style.background = '#059669';
         } else {
-          activeDownloadBtn.textContent = '⚠ Bridge offline';
+          activeDownloadBtn.innerHTML = `<span>⚠ Bridge offline</span>`;
           activeDownloadBtn.style.background = '#dc2626';
         }
 
         setTimeout(() => {
           activeDownloadBtn.disabled = false;
-          activeDownloadBtn.textContent = 'Download with VampYTD';
+          activeDownloadBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
+            <span>Download with VampYTD</span>
+          `;
           activeDownloadBtn.style.background = '';
         }, 2200);
       });
@@ -220,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // --- Radio Groups with ARIA + Keyboard Navigation ---
   function setupRadioGroup(container, settingKey, attrKey) {
-    const options = Array.from(container.querySelectorAll('.option'));
+    const options = Array.from(container.querySelectorAll('.option-chip'));
 
     function selectOption(option) {
       options.forEach((o) => {
@@ -233,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     container.addEventListener('click', (event) => {
-      const option = event.target.closest('.option');
+      const option = event.target.closest('.option-chip');
       if (option) selectOption(option);
     });
 
@@ -247,7 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
         nextOption = options[(idx - 1 + options.length) % options.length];
       } else if (e.key === ' ' || e.key === 'Enter') {
-        const focused = document.activeElement.closest('.option');
+        const focused = document.activeElement.closest('.option-chip');
         if (focused) nextOption = focused;
       }
 
@@ -274,7 +312,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedCodecEl = codecSelector.querySelector(`[data-codec="${items.preferredCodec}"]`);
     if (savedCodecEl) setCodecOption(savedCodecEl);
 
-    // YT Enhancements toggles
     if (toggleCinematicCrop) toggleCinematicCrop.checked = Boolean(items.enableCinematicCrop);
     if (toggleBlockAmbient)   toggleBlockAmbient.checked   = Boolean(items.enableBlockAmbient);
     if (toggleChannelVideos)  toggleChannelVideos.checked  = Boolean(items.enableChannelVideos);

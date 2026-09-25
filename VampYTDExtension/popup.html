@@ -7,34 +7,40 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f8fafc;
+      --bg: #ffffff;
       --surface: #ffffff;
-      --surface-2: #f1f5f9;
-      --surface-3: #e2e8f0;
-      --border: #e2e8f0;
-      --border-focus: #4f46e5;
+      --surface-hover: #f9fafb;
+      --surface-muted: #f3f4f6;
+      --border: #f1f5f9;
+      --border-subtle: #e5e7eb;
       --text: #0f172a;
-      --text-secondary: #334155;
-      --muted: #64748b;
+      --text-secondary: #475569;
+      --muted: #94a3b8;
+      
+      /* Native YouTube Red palette */
+      --yt-red: #ff0000;
+      --yt-red-hover: #cc0000;
+      --yt-red-active: #990000;
+      --yt-red-tint: #fef2f2;
+      --yt-red-border: #fecaca;
+
+      /* Health status colors */
       --success: #10b981;
       --success-bg: #ecfdf5;
-      --success-border: #a7f3d0;
+      --success-text: #047857;
       --warning: #f59e0b;
       --warning-bg: #fffbeb;
+      --warning-text: #b45309;
       --error: #ef4444;
       --error-bg: #fef2f2;
-      --accent: #4f46e5;
-      --accent-hover: #4338ca;
-      --accent-bg: #eef2ff;
-      --accent-border: #c7d2fe;
+      --error-text: #b91c1c;
     }
 
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      width: 360px;
-      max-height: 600px;
-      margin: 0;
+      width: 350px;
+      max-height: 580px;
       overflow-y: auto;
       background: var(--bg);
       color: var(--text);
@@ -44,137 +50,129 @@
 
     .shell { padding: 14px 16px 16px; }
 
+    /* Header */
     header {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 12px;
+      padding-bottom: 12px;
     }
 
     .brand {
       display: flex;
       align-items: center;
-      gap: 9px;
+      gap: 8px;
       text-decoration: none;
     }
 
-    .brand-icon {
-      width: 30px;
-      height: 30px;
-      border-radius: 7px;
-      flex-shrink: 0;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
-
-    .brand-text {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-
     .brand-logo {
-      height: 18px;
+      height: 22px;
       width: auto;
       object-fit: contain;
       display: block;
     }
 
     .brand-version {
+      display: inline-block;
       color: var(--muted);
       font-size: 10px;
-      font-weight: 500;
-      line-height: 1;
+      font-weight: 600;
+      padding: 1px 5px;
+      background: var(--surface-muted);
+      border-radius: 4px;
     }
 
     .overall-status {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 9px;
-      border: 1px solid var(--border);
+      gap: 5px;
+      padding: 3px 8px;
       border-radius: 999px;
-      background: var(--surface);
-      color: var(--muted);
       font-size: 11px;
       font-weight: 600;
       user-select: none;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
 
-    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
-    .overall-status.good .dot { background: var(--success); box-shadow: 0 0 6px #10b98188; }
-    .overall-status.good { color: #047857; border-color: var(--success-border); background: var(--success-bg); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; }
+    .overall-status.good .dot { background: var(--success); box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+    .overall-status.good { color: var(--success-text); background: var(--success-bg); }
     .overall-status.warn .dot { background: var(--warning); }
-    .overall-status.warn { color: #b45309; border-color: #fde68a; background: var(--warning-bg); }
+    .overall-status.warn { color: var(--warning-text); background: var(--warning-bg); }
     .overall-status.bad  .dot { background: var(--error); }
-    .overall-status.bad  { color: #b91c1c; border-color: #fecaca; background: var(--error-bg); }
+    .overall-status.bad  { color: var(--error-text); background: var(--error-bg); }
 
+    /* Modern YouTube Underline Tabs */
     .tabs {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 3px;
-      padding: 3px;
-      margin-bottom: 12px;
-      border: 1px solid var(--border);
-      border-radius: 9px;
-      background: #f1f5f9;
+      display: flex;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 14px;
+      gap: 16px;
     }
 
     .tab {
       border: 0;
-      border-radius: 6px;
-      padding: 7px 6px;
       background: transparent;
+      padding: 6px 2px 10px;
       color: var(--muted);
       cursor: pointer;
       font: inherit;
-      font-size: 12px;
-      font-weight: 600;
-      text-align: center;
-      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      font-size: 13px;
+      font-weight: 550;
+      position: relative;
+      transition: color 0.15s;
     }
 
     .tab:hover { color: var(--text); }
-    .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+    .tab:focus-visible { outline: none; color: var(--yt-red); }
     .tab.active {
-      background: var(--surface);
       color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      font-weight: 650;
+    }
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--yt-red);
+      border-radius: 2px;
     }
 
     .panel[hidden] { display: none; }
 
-    .card {
-      overflow: hidden;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--surface);
-      margin-bottom: 10px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
-    }
-
-    .card-title {
-      padding: 10px 12px 6px;
-      color: var(--muted);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: .06em;
-      text-transform: uppercase;
-    }
-
-    /* Active Video Card */
-    .active-video-card {
-      border-color: #cbd5e1;
-      background: #ffffff;
-    }
-
-    .active-video-body {
-      padding: 0 12px 12px;
+    /* Active Video Hero Banner */
+    .active-video-banner {
+      background: var(--yt-red-tint);
+      border: 1px solid var(--yt-red-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 9px;
     }
+
+    .active-video-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .site-badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--yt-red);
+      color: #ffffff;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .site-badge.hotstar { background: #0284c7; }
 
     .active-video-title {
       font-weight: 600;
@@ -187,95 +185,151 @@
       overflow: hidden;
     }
 
-    .active-video-meta {
+    /* Native YouTube Red Action Button */
+    .yt-primary-btn {
+      width: 100%;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-
-    .site-badge {
-      display: inline-block;
-      padding: 2px 7px;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 0;
       border-radius: 999px;
-      background: #ef4444;
-      color: #ffffff;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-    }
-
-    .site-badge.hotstar { background: #0284c7; }
-
-    .active-download-btn {
-      width: 100%;
-      padding: 8px 12px;
-      border: 1px solid #059669;
-      border-radius: 7px;
-      background: #10b981;
+      background: var(--yt-red);
       color: #ffffff;
       cursor: pointer;
       font: inherit;
       font-size: 12px;
-      font-weight: 650;
-      box-shadow: 0 1px 2px rgba(16,185,129,0.2);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(255, 0, 0, 0.25);
       transition: background 0.15s, transform 0.1s;
     }
+    .yt-primary-btn:hover { background: var(--yt-red-hover); }
+    .yt-primary-btn:active { transform: scale(0.99); background: var(--yt-red-active); }
+    .yt-primary-btn:focus-visible { outline: 2px solid var(--yt-red); outline-offset: 1px; }
+    .yt-primary-btn:disabled { opacity: 0.65; cursor: wait; }
 
-    .active-download-btn:hover { background: #059669; }
-    .active-download-btn:active { transform: scale(0.99); }
-    .active-download-btn:focus-visible { outline: 2px solid #059669; }
-    .active-download-btn:disabled { opacity: 0.65; cursor: wait; }
+    /* Borderless Health & Section Rows */
+    .section-list {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
 
-    .health-row {
+    .list-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      min-height: 38px;
-      padding: 8px 12px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .list-row:last-child { border-bottom: 0; }
+
+    .row-meta { display: flex; flex-direction: column; gap: 1px; }
+    .row-title { font-weight: 550; font-size: 12px; color: var(--text); }
+    .row-sub { font-size: 11px; color: var(--muted); }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      text-align: right;
+    }
+    .status-pill.good { color: var(--success-text); }
+    .status-pill.warn { color: var(--warning-text); }
+    .status-pill.bad  { color: var(--error-text); }
+
+    /* Expandable Tools Accordion */
+    .tools-accordion {
+      margin-top: 2px;
+      border-top: 1px solid var(--border);
+      padding-top: 6px;
+    }
+
+    .tools-accordion summary {
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      user-select: none;
+      padding: 4px 0;
+      transition: color 0.15s;
+    }
+    .tools-accordion summary:hover { color: var(--text-secondary); }
+
+    .tools-chips-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 8px 0 4px;
+    }
+
+    .tool-chip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 8px;
+      background: var(--surface-muted);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+    .tool-name { color: var(--text-secondary); font-weight: 500; }
+    .tool-val { font-weight: 600; color: var(--muted); font-size: 10px; }
+    .tool-val.good { color: var(--success-text); }
+    .tool-val.warn { color: var(--warning-text); }
+    .tool-val.bad  { color: var(--error-text); }
+
+    /* Download Folder Row */
+    .folder-bar {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 9px 0 12px;
       border-top: 1px solid var(--border);
     }
+    .folder-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+    .folder-path { font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: var(--text-secondary); overflow-wrap: anywhere; }
 
-    .health-label { font-weight: 500; font-size: 12px; color: var(--text-secondary); }
-    .health-value { color: var(--muted); font-size: 11px; text-align: right; }
-    .health-value.good { color: #047857; font-weight: 600; }
-    .health-value.warn { color: #b45309; }
-    .health-value.bad  { color: #b91c1c; font-weight: 600; }
-
-    .folder {
-      display: block;
-      padding: 0 12px 10px;
-      color: var(--muted);
-      font: 11px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
-      overflow-wrap: anywhere;
-    }
-
-    .test-button {
+    /* Secondary Tonal Action Button */
+    .yt-secondary-btn {
       width: 100%;
-      padding: 9px 12px;
-      border: 1px solid var(--accent);
-      border-radius: 8px;
-      background: var(--accent);
-      color: #ffffff;
+      padding: 8px 12px;
+      border: 1px solid var(--border-subtle);
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--text);
       cursor: pointer;
       font: inherit;
       font-size: 12px;
-      font-weight: 650;
-      box-shadow: 0 1px 2px rgba(79,70,229,0.2);
-      transition: background 0.15s;
+      font-weight: 600;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .yt-secondary-btn:hover { background: #e5e7eb; border-color: #d1d5db; }
+    .yt-secondary-btn:focus-visible { outline: 2px solid var(--yt-red); }
+    .yt-secondary-btn:disabled { opacity: 0.6; cursor: wait; }
+
+    .checked-time { margin-top: 7px; color: var(--muted); font-size: 10px; text-align: center; }
+
+    /* Settings & Options */
+    .settings-group {
+      margin-bottom: 14px;
+    }
+    .settings-heading {
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
     }
 
-    .test-button:hover    { background: var(--accent-hover); }
-    .test-button:focus-visible { outline: 2px solid var(--accent); }
-    .test-button:disabled { cursor: wait; opacity: .65; }
-    .checked-time { margin: 6px 2px 0; color: var(--muted); font-size: 10px; text-align: center; }
+    .options-grid {
+      display: grid;
+      gap: 4px;
+    }
 
-    .setting-card  { padding: 12px; }
-    .setting-title { margin: 0 0 7px; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-
-    .options { display: grid; gap: 4px; }
-    .option {
+    .option-chip {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -284,33 +338,21 @@
       border-radius: 7px;
       color: var(--text-secondary);
       cursor: pointer;
-      transition: background 0.12s, color 0.12s, border-color 0.12s;
+      background: var(--surface-hover);
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
     }
-
-    .option:hover  { background: var(--surface-2); color: var(--text); }
-    .option:focus-visible { outline: 2px solid var(--accent); }
-    .option.active {
-      border-color: var(--accent-border);
-      background: var(--accent-bg);
-      color: var(--accent);
+    .option-chip:hover { background: var(--surface-muted); color: var(--text); }
+    .option-chip:focus-visible { outline: 2px solid var(--yt-red); }
+    .option-chip.active {
+      border-color: var(--yt-red-border);
+      background: var(--yt-red-tint);
+      color: var(--yt-red-hover);
       font-weight: 600;
     }
-    .option-meta   { font-size: 10px; color: var(--muted); }
+    .option-meta { font-size: 10px; color: var(--muted); }
+    .option-chip.active .option-meta { color: var(--yt-red-hover); opacity: 0.8; }
 
-    .toggle-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 12px;
-      border-top: 1px solid var(--border);
-    }
-    .toggle-row:first-of-type { border-top: 0; }
-
-    .toggle-text { flex: 1; }
-    .toggle-title { font-weight: 550; font-size: 12px; color: var(--text); }
-    .toggle-description { color: var(--muted); font-size: 11px; margin-top: 1px; }
-
+    /* Native YouTube Red Toggle Switch */
     .switch {
       position: relative;
       width: 36px;
@@ -335,107 +377,120 @@
       left: 3px;
       border-radius: 50%;
       background: #ffffff;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.25);
       transition: transform .18s;
     }
-    .switch input:checked + .slider             { background: var(--accent); }
+    .switch input:checked + .slider             { background: var(--yt-red); }
     .switch input:checked + .slider::before     { transform: translateX(16px); }
-    .switch input:focus-visible + .slider       { outline: 2px solid var(--accent); }
+    .switch input:focus-visible + .slider       { outline: 2px solid var(--yt-red); }
   </style>
 </head>
 <body>
   <div class="shell">
+    <!-- Header -->
     <header>
       <div class="brand">
-        <img src="icons/icon32.png" alt="VampYTD Icon" class="brand-icon">
-        <div class="brand-text">
-          <img src="icons/logo.png" alt="VampYTD" class="brand-logo">
-          <span class="brand-version" id="version-text"></span>
-        </div>
+        <img src="icons/logo.png" alt="VampYTD" class="brand-logo">
+        <span class="brand-version" id="version-text">v1.4.0</span>
       </div>
-      <div class="overall-status" id="overall-status">
+      <div class="overall-status good" id="overall-status">
         <span class="dot"></span>
-        <span id="overall-text">Checking</span>
+        <span id="overall-text">Ready</span>
       </div>
     </header>
 
-    <nav class="tabs" role="tablist" aria-label="Popup sections">
+    <!-- YouTube-style Underline Tabs -->
+    <nav class="tabs" role="tablist" aria-label="Sections">
       <button class="tab active" type="button" role="tab" id="tab-status" aria-selected="true" aria-controls="status-panel" data-panel="status-panel">Status</button>
       <button class="tab" type="button" role="tab" id="tab-settings" aria-selected="false" aria-controls="settings-panel" data-panel="settings-panel">Settings</button>
       <button class="tab" type="button" role="tab" id="tab-yt" aria-selected="false" aria-controls="yt-panel" data-panel="yt-panel">YT Tools</button>
     </nav>
 
     <main>
-      <!-- Panel 1: Status & Connection -->
+      <!-- Panel 1: Status & Active Video -->
       <section class="panel" id="status-panel" role="tabpanel" aria-labelledby="tab-status">
         <!-- Active Video Card (visible when on YouTube / Hotstar) -->
-        <div class="card active-video-card" id="active-video-card" hidden>
-          <div class="card-title">Active Video</div>
-          <div class="active-video-body">
-            <div class="active-video-title" id="active-video-title">Detecting video…</div>
-            <div class="active-video-meta">
-              <span class="site-badge" id="active-video-badge">YouTube</span>
+        <div class="active-video-banner" id="active-video-card" hidden>
+          <div class="active-video-meta">
+            <span class="site-badge" id="active-video-badge">YouTube</span>
+            <span class="active-video-title" id="active-video-title">Detecting video…</span>
+          </div>
+          <button class="yt-primary-btn" type="button" id="active-download-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
+            <span>Download with VampYTD</span>
+          </button>
+        </div>
+
+        <!-- Compact Borderless Connection & Tools List -->
+        <div class="section-list">
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Native Bridge</span>
+              <span class="row-sub">Local stdio messaging</span>
             </div>
-            <button class="active-download-btn" type="button" id="active-download-btn">
-              Download with VampYTD
-            </button>
+            <span class="status-pill good" id="native-status">Connected</span>
+          </div>
+
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Downloader Stack</span>
+              <span class="row-sub" id="tools-summary">yt-dlp, FFmpeg, Node.js, FZF</span>
+            </div>
+            <span class="status-pill good" id="tools-status">Ready</span>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">Connection</div>
-          <div class="health-row">
-            <span class="health-label">Native bridge</span>
-            <span class="health-value" id="native-status">Checking…</span>
+        <!-- Collapsible Details for Individual Tools -->
+        <details class="tools-accordion" id="tools-details">
+          <summary>View individual tool statuses</summary>
+          <div class="tools-chips-grid">
+            <div class="tool-chip"><span class="tool-name">VampYTD</span> <span class="tool-val" id="downloader-status">Checking</span></div>
+            <div class="tool-chip"><span class="tool-name">yt-dlp</span> <span class="tool-val" id="ytdlp-status">Checking</span></div>
+            <div class="tool-chip"><span class="tool-name">FFmpeg</span> <span class="tool-val" id="ffmpeg-status">Checking</span></div>
+            <div class="tool-chip"><span class="tool-name">Node.js</span> <span class="tool-val" id="node-status">Checking</span></div>
+            <div class="tool-chip"><span class="tool-name">FZF</span> <span class="tool-val" id="fzf-status">Optional</span></div>
           </div>
+        </details>
+
+        <!-- Destination Folder -->
+        <div class="folder-bar">
+          <span class="folder-label">Destination Folder</span>
+          <span class="folder-path" id="download-folder">Checking…</span>
         </div>
 
-        <div class="card">
-          <div class="card-title">Required tools</div>
-          <div class="health-row"><span class="health-label">VampYTD downloader</span><span class="health-value" id="downloader-status">Checking…</span></div>
-          <div class="health-row"><span class="health-label">yt-dlp</span><span class="health-value" id="ytdlp-status">Checking…</span></div>
-          <div class="health-row"><span class="health-label">FFmpeg</span><span class="health-value" id="ffmpeg-status">Checking…</span></div>
-          <div class="health-row"><span class="health-label">Node.js</span><span class="health-value" id="node-status">Checking…</span></div>
-          <div class="health-row"><span class="health-label">FZF</span><span class="health-value" id="fzf-status">Optional</span></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">Download folder</div>
-          <span class="folder" id="download-folder">Checking…</span>
-        </div>
-
-        <button class="test-button" type="button" id="test-button">Test connection</button>
+        <!-- Secondary Action Button -->
+        <button class="yt-secondary-btn" type="button" id="test-button">Test connection</button>
         <div class="checked-time" id="checked-time" aria-live="polite"></div>
       </section>
 
       <!-- Panel 2: Downloader Settings -->
       <section class="panel" id="settings-panel" role="tabpanel" aria-labelledby="tab-settings" hidden>
-        <div class="card setting-card">
-          <h2 class="setting-title" id="mode-label">Download mode</h2>
-          <div class="options" id="mode-selector" role="radiogroup" aria-labelledby="mode-label">
-            <div class="option" data-mode="interactive" role="radio" aria-checked="false" tabindex="0"><span>Interactive</span><span class="option-meta">Format menu</span></div>
-            <div class="option" data-mode="quick-max" role="radio" aria-checked="false" tabindex="-1"><span>Quick Max</span><span class="option-meta">Best quality</span></div>
-            <div class="option" data-mode="quick-1080p" role="radio" aria-checked="false" tabindex="-1"><span>Quick 1080p</span><span class="option-meta">Full HD</span></div>
-            <div class="option" data-mode="quick-4k" role="radio" aria-checked="false" tabindex="-1"><span>Quick 4K</span><span class="option-meta">Ultra HD</span></div>
+        <div class="settings-group">
+          <h2 class="settings-heading" id="mode-label">Download Mode</h2>
+          <div class="options-grid" id="mode-selector" role="radiogroup" aria-labelledby="mode-label">
+            <div class="option-chip" data-mode="interactive" role="radio" aria-checked="false" tabindex="0"><span>Interactive</span><span class="option-meta">Format menu</span></div>
+            <div class="option-chip" data-mode="quick-max" role="radio" aria-checked="false" tabindex="-1"><span>Quick Max</span><span class="option-meta">Best quality</span></div>
+            <div class="option-chip" data-mode="quick-1080p" role="radio" aria-checked="false" tabindex="-1"><span>Quick 1080p</span><span class="option-meta">Full HD</span></div>
+            <div class="option-chip" data-mode="quick-4k" role="radio" aria-checked="false" tabindex="-1"><span>Quick 4K</span><span class="option-meta">Ultra HD</span></div>
           </div>
         </div>
 
-        <div class="card setting-card">
-          <h2 class="setting-title" id="codec-label">Preferred codec</h2>
-          <div class="options" id="codec-selector" role="radiogroup" aria-labelledby="codec-label">
-            <div class="option" data-codec="auto" role="radio" aria-checked="false" tabindex="0"><span>Auto</span><span class="option-meta">Best match</span></div>
-            <div class="option" data-codec="av1" role="radio" aria-checked="false" tabindex="-1"><span>AV1</span><span class="option-meta">High efficiency</span></div>
-            <div class="option" data-codec="vp9" role="radio" aria-checked="false" tabindex="-1"><span>VP9</span><span class="option-meta">WebM / YouTube</span></div>
-            <div class="option" data-codec="hevc" role="radio" aria-checked="false" tabindex="-1"><span>HEVC</span><span class="option-meta">H.265</span></div>
-            <div class="option" data-codec="h264" role="radio" aria-checked="false" tabindex="-1"><span>H264</span><span class="option-meta">Compatibility</span></div>
+        <div class="settings-group">
+          <h2 class="settings-heading" id="codec-label">Preferred Codec</h2>
+          <div class="options-grid" id="codec-selector" role="radiogroup" aria-labelledby="codec-label">
+            <div class="option-chip" data-codec="auto" role="radio" aria-checked="false" tabindex="0"><span>Auto</span><span class="option-meta">Best match</span></div>
+            <div class="option-chip" data-codec="av1" role="radio" aria-checked="false" tabindex="-1"><span>AV1</span><span class="option-meta">High efficiency</span></div>
+            <div class="option-chip" data-codec="vp9" role="radio" aria-checked="false" tabindex="-1"><span>VP9</span><span class="option-meta">WebM / YouTube</span></div>
+            <div class="option-chip" data-codec="hevc" role="radio" aria-checked="false" tabindex="-1"><span>HEVC</span><span class="option-meta">H.265</span></div>
+            <div class="option-chip" data-codec="h264" role="radio" aria-checked="false" tabindex="-1"><span>H264</span><span class="option-meta">Compatibility</span></div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <div class="toggle-title">Load cookies</div>
-              <div class="toggle-description">Include cookies-yt.txt or cookies-jhs.txt</div>
+        <div class="section-list">
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Load Cookies</span>
+              <span class="row-sub">Include cookies-yt.txt or cookies-jhs.txt</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="cookies-toggle" aria-label="Load cookies">
@@ -445,15 +500,13 @@
         </div>
       </section>
 
-      <!-- Panel 3: YouTube Enhancements (Userscript Tools) -->
+      <!-- Panel 3: YouTube Enhancements -->
       <section class="panel" id="yt-panel" role="tabpanel" aria-labelledby="tab-yt" hidden>
-        <div class="card">
-          <div class="card-title">YouTube Power Tools</div>
-
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <div class="toggle-title">Cinematic Crop (2.39:1)</div>
-              <div class="toggle-description">Crop black bars on ultrawide videos (Alt+C)</div>
+        <div class="section-list">
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Cinematic Crop (2.39:1)</span>
+              <span class="row-sub">Crop black bars on widescreen videos (Alt+C)</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="toggle-cinematic-crop" aria-label="Toggle Cinematic Crop">
@@ -461,10 +514,10 @@
             </label>
           </div>
 
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <div class="toggle-title">Block Ambient Glow</div>
-              <div class="toggle-description">Hide glowing borders and legacy annotations</div>
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Block Ambient Glow</span>
+              <span class="row-sub">Hide glow effects & annotations to save GPU</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="toggle-block-ambient" aria-label="Toggle Block Ambient Glow">
@@ -472,10 +525,10 @@
             </label>
           </div>
 
-          <div class="toggle-row">
-            <div class="toggle-text">
-              <div class="toggle-title">Channel 'Videos' Tab First</div>
-              <div class="toggle-description">Direct channel links to /videos automatically</div>
+          <div class="list-row">
+            <div class="row-meta">
+              <span class="row-title">Channel 'Videos' Tab First</span>
+              <span class="row-sub">Always open channel links directly on /videos</span>
             </div>
             <label class="switch">
               <input type="checkbox" id="toggle-channel-videos" aria-label="Toggle Channel Videos First">
