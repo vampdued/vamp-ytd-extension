@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.1 - JS Runtime Auto-Detection
+
+- **Auto-detect JavaScript runtime for yt-dlp**:
+  - Removed hard-coded dependency on Node.js (`--js-runtime node`).
+  - At startup, `ytd` now probes `deno → bun → node` in PATH and passes the first found runtime to yt-dlp via `--js-runtime`.
+  - If none of the three runtimes are found, the flag is omitted and yt-dlp surfaces its own diagnostic error.
+  - Eliminates the `"Node.js is required… not found in PATH"` crash for users with Deno or Bun installed.
+
 ## 1.5.0 - Standalone Setup Executable & Streamlined Distribution
 
 - **Standalone Windows Installer (`VampYTD-Setup.exe`)**:

@@ -40,9 +40,32 @@ const (
 )
 
 var (
-	clientArgs = []string{"--js-runtime", "node"}
+	clientArgs []string // populated by initClientArgs at startup
 	template   = `%(uploader)s - %(title)s [%(id)s] [%(height)sp] [%(vcodec)s] [%(format_id)s].%(ext)s`
 )
+
+// detectJSRuntime probes deno → bun → node in PATH and returns the first
+// runtime name recognised by yt-dlp's --js-runtime flag, or "" if none found.
+func detectJSRuntime() string {
+	for _, candidate := range []string{"deno", "bun", "node"} {
+		if _, err := exec.LookPath(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// initClientArgs is called once at startup (after refreshPATH) and sets the
+// global clientArgs slice used for every yt-dlp invocation.
+func initClientArgs() {
+	refreshPATH()
+	runtime := detectJSRuntime()
+	if runtime != "" {
+		clientArgs = []string{"--js-runtime", runtime}
+	}
+	// If no runtime is found, clientArgs stays nil — no --js-runtime flag is
+	// passed and yt-dlp will surface its own diagnostic error.
+}
 
 // ==============================================================================
 // ANSI COLOUR HELPERS
@@ -983,7 +1006,7 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 // ==============================================================================
 
 func main() {
-	refreshPATH()
+	initClientArgs() // detects deno → bun → node; also calls refreshPATH
 	home, err := os.UserHomeDir()
 	if err != nil {
 		home = os.Getenv("HOME")
@@ -1036,16 +1059,14 @@ func main() {
 		}
 	}
 
-	// Dependencies
 	if !commandExists(ytdlp) {
 		die("yt-dlp is required and was not found in PATH.")
 	}
 	if !commandExists(ffmpeg) {
 		die("ffmpeg is required for MKV merge and was not found in PATH.")
 	}
-	if !commandExists("node") {
-		die("Node.js is required by the configured yt-dlp JavaScript runtime and was not found in PATH.")
-	}
+	// JS runtime: initClientArgs() already detected deno/bun/node at startup.
+	// If none was found, clientArgs will be nil and yt-dlp will error on its own.
 
 	checkYTDLPAge(configRoot)
 
