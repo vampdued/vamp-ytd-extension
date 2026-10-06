@@ -46,7 +46,10 @@ jobs:
               throw "Extension version $manifestVersion does not match tag $currentRefName"
             }
           } else {
-            git rev-parse "$targetTag" 2>$null
+            # NOTE: capture all output (2>&1) so git's stderr can never become
+            # a terminating NativeCommandError in the Actions shell; rely on
+            # $LASTEXITCODE instead.
+            $null = git rev-parse --verify "refs/tags/$targetTag" 2>&1
             if ($LASTEXITCODE -eq 0) {
               Write-Host "Tag $targetTag already exists."
               if ($currentRefType -eq "branch") {
