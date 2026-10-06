@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## 1.5.2 — 2026-10-06
 
 ### Fixed
 - Web installer (`install.ps1`) now downloads `checksums.txt` and verifies the SHA-256 of `VampYTD-Setup.exe` before running it.
@@ -10,6 +10,13 @@
 - `deploy.ps1` no longer forces a Node.js install — Node is suggested only when no JS runtime exists at all.
 - Release workflow no longer silently re-publishes assets on merges without a version bump.
 - Removed dead `.goreleaser.yaml`; corrected README release/Go-version claims.
+
+### Removed
+- All Firefox/Mozilla support (Chromium-only now): `manifest.firefox.json`, gecko settings, Mozilla native-host manifest and registry keys, and related tests/scripts/docs.
+
+### Changed
+- Installer no longer reimplements native-host registration — it runs the extracted `bridge.exe --install-native`, so the manifest + registry logic lives in exactly one place.
+- New shared `internal/pathutil` package used by both `bridge` and `ytd` (was copy-pasted in each); PATH re-scan is cached for 60s so popup diagnostics no longer walk the filesystem on every open.
 
 ## 1.5.1 — 2026-09-29 — JS Runtime Auto-Detection
 
