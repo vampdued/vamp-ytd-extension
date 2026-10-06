@@ -46,29 +46,31 @@ jobs:
               throw "Extension version $manifestVersion does not match tag $currentRefName"
             }
           } else {
-            # NOTE: capture all output (2>&1) so git's stderr can never become
-            # a terminating NativeCommandError in the Actions shell; rely on
-            # $LASTEXITCODE instead.
-            $null = git rev-parse --verify "refs/tags/$targetTag" 2>&1
-            if ($LASTEXITCODE -eq 0) {
+            # git tag --list prints the tag when it exists and nothing at
+            # all (exit 0, no stderr) when it doesn't. That matters here:
+            # this shell turns git's stderr into a terminating error, so
+            # the existence probe must never fail.
+            $existingTag = git tag --list "$targetTag"
+            if ($existingTag) {
               Write-Host "Tag $targetTag already exists."
               if ($currentRefType -eq "branch") {
                 # A push to main without a version bump would silently re-publish
                 # (and --clobber) the existing release assets. Refuse instead.
+                # These rev-parses target refs known to exist, so they stay quiet.
                 $tagCommit = (git rev-parse "$targetTag").Trim()
                 $headCommit = (git rev-parse "HEAD").Trim()
                 if ($tagCommit -ne $headCommit) {
                   throw "Tag $targetTag already exists at a different commit ($tagCommit). Bump the version in VampYTDExtension/manifest.json before merging to main, or push the $targetTag tag directly to re-release."
                 }
               }
-              git checkout "$targetTag"
+              git -c advice.detachedHead=false checkout --quiet "$targetTag"
             } else {
               Write-Host "Creating new release tag $targetTag..."
               git config user.name "github-actions[bot]"
               git config user.email "github-actions[bot]@users.noreply.github.com"
               git tag -a "$targetTag" -m "Release $targetTag"
-              git push origin "$targetTag"
-              git checkout "$targetTag"
+              git push --quiet origin "$targetTag"
+              git -c advice.detachedHead=false checkout --quiet "$targetTag"
             }
           }
 

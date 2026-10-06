@@ -30,6 +30,9 @@ jobs:
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
+        with:
+          # Pinned: must be built with Go >= the go.mod language version (1.26.2).
+          version: v2.14.0
 
       - name: Validate PowerShell Scripts
         shell: powershell
