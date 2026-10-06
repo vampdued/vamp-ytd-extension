@@ -29,7 +29,7 @@ jobs:
         run: go vet ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
           # Pinned: must be built with Go >= the go.mod language version (1.26.2).
           version: v2.14.0
