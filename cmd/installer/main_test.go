@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -30,38 +29,6 @@ func TestIsUninstallMode(t *testing.T) {
 				t.Errorf("isUninstallMode(%v, %q) = %v; want %v", tt.args, tt.exePath, got, tt.expected)
 			}
 		})
-	}
-}
-
-func TestBuildManifestJSON(t *testing.T) {
-	bridgePath := `C:\Users\Test\AppData\Local\VampYTD\bridge.exe`
-	data, err := buildManifestJSON(bridgePath)
-	if err != nil {
-		t.Fatalf("buildManifestJSON failed: %v", err)
-	}
-
-	var parsed map[string]interface{}
-	if err := json.Unmarshal(data, &parsed); err != nil {
-		t.Fatalf("generated invalid JSON: %v", err)
-	}
-
-	if parsed["name"] != HostName {
-		t.Errorf("name = %v; want %v", parsed["name"], HostName)
-	}
-	if parsed["path"] != bridgePath {
-		t.Errorf("path = %v; want %v", parsed["path"], bridgePath)
-	}
-	if parsed["type"] != "stdio" {
-		t.Errorf("type = %v; want stdio", parsed["type"])
-	}
-
-	origins, ok := parsed["allowed_origins"].([]interface{})
-	if !ok || len(origins) == 0 {
-		t.Fatalf("expected allowed_origins to be non-empty slice")
-	}
-	expectedOrigin := "chrome-extension://" + ExtensionID + "/"
-	if origins[0] != expectedOrigin {
-		t.Errorf("allowed_origins[0] = %v; want %v", origins[0], expectedOrigin)
 	}
 }
 

@@ -14,9 +14,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"syscall"
 	"unicode/utf16"
-	"unsafe"
+
+	"github.com/vampdued/vamp-ytd-extension/internal/pathutil"
 )
 
 type Payload struct {
@@ -32,7 +32,6 @@ const maxRequestBody = 64 * 1024
 const (
 	nativeHostName     = "com.vampytd.bridge"
 	extensionOrigin    = "chrome-extension://jjacbochmpbgpfpbfclmileocddkncgd/"
-	firefoxExtensionID = "vampytd@vampdued.github.io"
 )
 
 var diagnosticWriter io.Writer = os.Stdout
@@ -51,159 +50,15 @@ type NativeResponse struct {
 	FZF         bool   `json:"fzf"`
 }
 
-var (
-	modkernel32                    = syscall.NewLazyDLL("kernel32.dll")
-	procExpandEnvironmentStringsW = modkernel32.NewProc("ExpandEnvironmentStringsW")
-)
-
-func expandWinEnv(input string) string {
-	if input == "" {
-		return ""
-	}
-	ptr, err := syscall.UTF16PtrFromString(input)
-	if err != nil {
-		return input
-	}
-	buf := make([]uint16, 32768)
-	r1, _, _ := procExpandEnvironmentStringsW.Call(
-		uintptr(unsafe.Pointer(ptr)),
-		uintptr(unsafe.Pointer(&buf[0])),
-		uintptr(len(buf)),
-	)
-	if r1 == 0 {
-		return input
-	}
-	return syscall.UTF16ToString(buf)
-}
-
-func getRegistryEnv(key syscall.Handle, subkey, valueName string) string {
-	var hKey syscall.Handle
-	subKeyPtr, _ := syscall.UTF16PtrFromString(subkey)
-	if err := syscall.RegOpenKeyEx(key, subKeyPtr, 0, syscall.KEY_READ, &hKey); err != nil {
-		return ""
-	}
-	defer syscall.RegCloseKey(hKey)
-
-	valPtr, _ := syscall.UTF16PtrFromString(valueName)
-	var bufSize uint32
-	var valType uint32
-	if err := syscall.RegQueryValueEx(hKey, valPtr, nil, &valType, nil, &bufSize); err != nil {
-		return ""
-	}
-
-	buf := make([]uint16, bufSize/2+1)
-	if err := syscall.RegQueryValueEx(hKey, valPtr, nil, &valType, (*byte)(unsafe.Pointer(&buf[0])), &bufSize); err != nil {
-		return ""
-	}
-
-	return syscall.UTF16ToString(buf)
-}
-
-func refreshPATH() {
-	if runtime.GOOS != "windows" {
-		return
-	}
-	userPath := getRegistryEnv(syscall.HKEY_CURRENT_USER, "Environment", "Path")
-	machinePath := getRegistryEnv(syscall.HKEY_LOCAL_MACHINE, `SYSTEM\CurrentControlSet\Control\Session Manager\Environment`, "Path")
-
-	rawPath := userPath
-	if machinePath != "" {
-		if rawPath != "" {
-			rawPath = rawPath + ";" + machinePath
-		} else {
-			rawPath = machinePath
-		}
-	}
-	if current := os.Getenv("PATH"); current != "" {
-		rawPath = rawPath + ";" + current
-	}
-
-	expanded := expandWinEnv(rawPath)
-
-	localAppData := os.Getenv("LOCALAPPDATA")
-	programFiles := os.Getenv("ProgramFiles")
-	programFilesX86 := os.Getenv("ProgramFiles(x86)")
-	extraPaths := []string{}
-	if localAppData != "" {
-		extraPaths = append(extraPaths,
-			filepath.Join(localAppData, "Microsoft", "WinGet", "Links"),
-		)
-		packagesDir := filepath.Join(localAppData, "Microsoft", "WinGet", "Packages")
-		if entries, err := os.ReadDir(packagesDir); err == nil {
-			for _, entry := range entries {
-				if entry.IsDir() {
-					pkgPath := filepath.Join(packagesDir, entry.Name())
-					extraPaths = append(extraPaths, pkgPath)
-					if subEntries, err := os.ReadDir(pkgPath); err == nil {
-						for _, sub := range subEntries {
-							if sub.IsDir() {
-								if strings.EqualFold(sub.Name(), "bin") {
-									extraPaths = append(extraPaths, filepath.Join(pkgPath, sub.Name()))
-								} else {
-									subPath := filepath.Join(pkgPath, sub.Name())
-									if subSubEntries, err := os.ReadDir(subPath); err == nil {
-										for _, subSub := range subSubEntries {
-											if subSub.IsDir() && strings.EqualFold(subSub.Name(), "bin") {
-												extraPaths = append(extraPaths, filepath.Join(subPath, subSub.Name()))
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-	if programFiles != "" {
-		extraPaths = append(extraPaths, filepath.Join(programFiles, "nodejs"))
-	}
-	if programFilesX86 != "" {
-		extraPaths = append(extraPaths, filepath.Join(programFilesX86, "nodejs"))
-	}
-
-	allEntries := append(strings.Split(expanded, ";"), extraPaths...)
-	seen := make(map[string]bool)
-	var finalEntries []string
-	for _, p := range allEntries {
-		p = strings.TrimSpace(p)
-		if p == "" || seen[strings.ToLower(p)] {
-			continue
-		}
-		seen[strings.ToLower(p)] = true
-		finalEntries = append(finalEntries, p)
-	}
-
-	os.Setenv("PATH", strings.Join(finalEntries, ";"))
-}
-
-func commandAvailable(name string) bool {
-	refreshPATH()
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
-// detectJSRuntime probes deno → bun → node in PATH (matching ytd's order)
-// and returns the first available runtime's name, or "" when none is found.
-func detectJSRuntime() string {
-	for _, candidate := range []string{"deno", "bun", "node"} {
-		if commandAvailable(candidate) {
-			return candidate
-		}
-	}
-	return ""
-}
-
 func diagnosticResponse() NativeResponse {
-	refreshPATH()
+	pathutil.RefreshPATH()
 	home, _ := os.UserHomeDir()
 	downloadDir := ""
 	if home != "" {
 		downloadDir = filepath.Join(home, "Downloads", "VampYTD")
 	}
 
-	downloaderAvailable := commandAvailable("ytd")
+	downloaderAvailable := pathutil.CommandAvailable("ytd")
 	if executable, err := os.Executable(); err == nil {
 		binaryName := "ytd"
 		if runtime.GOOS == "windows" {
@@ -215,18 +70,18 @@ func diagnosticResponse() NativeResponse {
 	}
 
 	// Any one of deno / bun / node satisfies the JS runtime requirement.
-	jsRuntime := detectJSRuntime()
+	jsRuntime := pathutil.DetectJSRuntime()
 
 	return NativeResponse{
 		OK:          true,
 		Platform:    runtime.GOOS,
 		DownloadDir: downloadDir,
 		Downloader:  downloaderAvailable,
-		YTDLP:       commandAvailable("yt-dlp"),
-		FFmpeg:      commandAvailable("ffmpeg"),
+		YTDLP:       pathutil.CommandAvailable("yt-dlp"),
+		FFmpeg:      pathutil.CommandAvailable("ffmpeg"),
 		Node:        jsRuntime == "node",
 		JSRuntime:   jsRuntime,
-		FZF:         commandAvailable("fzf"),
+		FZF:         pathutil.CommandAvailable("fzf"),
 	}
 }
 
@@ -236,14 +91,6 @@ type NativeHostManifest struct {
 	Path           string   `json:"path"`
 	Type           string   `json:"type"`
 	AllowedOrigins []string `json:"allowed_origins"`
-}
-
-type MozillaNativeHostManifest struct {
-	Name              string   `json:"name"`
-	Description       string   `json:"description"`
-	Path              string   `json:"path"`
-	Type              string   `json:"type"`
-	AllowedExtensions []string `json:"allowed_extensions"`
 }
 
 func validatePayload(p Payload) error {
@@ -508,8 +355,7 @@ func isNativeInvocation(args []string) bool {
 		return true
 	}
 	return args[0] == "--native-host" ||
-		strings.TrimSuffix(args[0], "/") == strings.TrimSuffix(extensionOrigin, "/") ||
-		args[0] == firefoxExtensionID
+		strings.TrimSuffix(args[0], "/") == strings.TrimSuffix(extensionOrigin, "/")
 }
 
 func nativeManifestPaths() ([]string, error) {
@@ -551,31 +397,6 @@ func nativeManifestPaths() ([]string, error) {
 	}
 }
 
-func mozillaManifestPaths() ([]string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-	name := nativeHostName + ".json"
-	switch runtime.GOOS {
-	case "windows":
-		executable, err := os.Executable()
-		if err != nil {
-			return nil, err
-		}
-		return []string{filepath.Join(filepath.Dir(executable), nativeHostName+".firefox.json")}, nil
-	case "darwin":
-		base := filepath.Join(home, "Library", "Application Support")
-		return []string{
-			filepath.Join(base, "Mozilla", "NativeMessagingHosts", name),
-		}, nil
-	default:
-		return []string{
-			filepath.Join(home, ".mozilla", "native-messaging-hosts", name),
-		}, nil
-	}
-}
-
 func installNativeHost() error {
 	executable, err := os.Executable()
 	if err != nil {
@@ -610,31 +431,6 @@ func installNativeHost() error {
 		}
 	}
 
-	mozManifest := MozillaNativeHostManifest{
-		Name:              nativeHostName,
-		Description:       "VampYTD browser integration",
-		Path:              executable,
-		Type:              "stdio",
-		AllowedExtensions: []string{firefoxExtensionID},
-	}
-	mozBody, err := json.MarshalIndent(mozManifest, "", "  ")
-	if err != nil {
-		return err
-	}
-	mozBody = append(mozBody, '\n')
-	mozPaths, err := mozillaManifestPaths()
-	if err != nil {
-		return err
-	}
-	for _, path := range mozPaths {
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(path, mozBody, 0644); err != nil {
-			return err
-		}
-	}
-
 	if runtime.GOOS == "windows" {
 		registries := []string{
 			`HKCU\Software\Google\Chrome\NativeMessagingHosts\` + nativeHostName,
@@ -655,14 +451,8 @@ func installNativeHost() error {
 		if registered == 0 {
 			return fmt.Errorf("failed to register the native messaging host for any browser")
 		}
-
-		mozKey := `HKCU\Software\Mozilla\NativeMessagingHosts\` + nativeHostName
-		cmd := exec.Command("reg.exe", "add", mozKey, "/ve", "/t", "REG_SZ", "/d", mozPaths[0], "/f")
-		if output, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("registering %s: %w: %s", mozKey, err, strings.TrimSpace(string(output)))
-		}
 	}
-	fmt.Printf("Registered native messaging host %s for extension %s and Firefox\n", nativeHostName, extensionOrigin)
+	fmt.Printf("Registered native messaging host %s for extension %s\n", nativeHostName, extensionOrigin)
 	return nil
 }
 
@@ -676,14 +466,6 @@ func uninstallNativeHost() error {
 			return err
 		}
 	}
-	mozPaths, err := mozillaManifestPaths()
-	if err == nil {
-		for _, path := range mozPaths {
-			if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-				return err
-			}
-		}
-	}
 	if runtime.GOOS == "windows" {
 		registries := []string{
 			`HKCU\Software\Google\Chrome\NativeMessagingHosts\` + nativeHostName,
@@ -691,7 +473,6 @@ func uninstallNativeHost() error {
 			`HKCU\Software\Chromium\NativeMessagingHosts\` + nativeHostName,
 			`HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\` + nativeHostName,
 			`HKCU\Software\Vivaldi\NativeMessagingHosts\` + nativeHostName,
-			`HKCU\Software\Mozilla\NativeMessagingHosts\` + nativeHostName,
 		}
 		for _, key := range registries {
 			_ = exec.Command("reg.exe", "delete", key, "/f").Run()
@@ -702,7 +483,7 @@ func uninstallNativeHost() error {
 }
 
 func main() {
-	refreshPATH()
+	pathutil.RefreshPATH()
 
 	if len(os.Args) > 1 && os.Args[1] == "--install-native" {
 		if err := installNativeHost(); err != nil {

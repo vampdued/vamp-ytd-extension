@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"embed"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -19,8 +18,6 @@ var payloadFS embed.FS
 
 const (
 	HostName         = "com.vampytd.bridge"
-	ExtensionID      = "jjacbochmpbgpfpbfclmileocddkncgd"
-	AllowedOrigin    = "chrome-extension://" + ExtensionID + "/"
 	InstallDirName   = "VampYTD"
 	ExtensionDirName = "extension"
 )
@@ -31,14 +28,6 @@ var BrowserRegistryKeys = []string{
 	`HKCU\Software\Chromium\NativeMessagingHosts\` + HostName,
 	`HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\` + HostName,
 	`HKCU\Software\Vivaldi\NativeMessagingHosts\` + HostName,
-}
-
-type NativeHostManifest struct {
-	Name           string   `json:"name"`
-	Description    string   `json:"description"`
-	Path           string   `json:"path"`
-	Type           string   `json:"type"`
-	AllowedOrigins []string `json:"allowed_origins"`
 }
 
 func enableVTMode() {
@@ -78,19 +67,6 @@ func getInstallDir() (string, error) {
 	return filepath.Join(localAppData, InstallDirName), nil
 }
 
-func buildManifestJSON(bridgePath string) ([]byte, error) {
-	manifest := NativeHostManifest{
-		Name:        HostName,
-		Description: "VampYTD native messaging bridge",
-		Path:        bridgePath,
-		Type:        "stdio",
-		AllowedOrigins: []string{
-			AllowedOrigin,
-		},
-	}
-	return json.MarshalIndent(manifest, "", "  ")
-}
-
 func printBanner() {
 	fmt.Println("\033[1;31m")
 	fmt.Println("  ╦  ╦┌─┐┌┬┐┌─┐╦ ╦╔╦╗╔╦╗")
@@ -111,10 +87,9 @@ func runInstall() error {
 	}
 	extDir := filepath.Join(installDir, ExtensionDirName)
 	bridgePath := filepath.Join(installDir, "bridge.exe")
-	manifestPath := filepath.Join(installDir, HostName+".json")
 
 	// 1. Terminate existing bridge processes
-	fmt.Println("\033[1m[1/6] Terminating active bridge processes (if running)...\033[0m")
+	fmt.Println("\033[1m[1/5] Terminating active bridge processes (if running)...\033[0m")
 	killOwnBridge(installDir)
 	fmt.Println("  \033[32m✔ Ready for file installation\033[0m")
 
@@ -171,41 +146,24 @@ func runInstall() error {
 	}
 	fmt.Printf("  \033[32m✔ Extracted %d application files successfully\033[0m\n", extractedCount)
 
-	// 3. Generate native host manifest
-	fmt.Println("\033[1m[3/6] Generating Native Messaging Host manifest...\033[0m")
-	manifestJSON, err := buildManifestJSON(bridgePath)
-	if err != nil {
-		return fmt.Errorf("failed to build manifest JSON: %w", err)
+	// 3. Install the native messaging host (manifest + browser registrations)
+	// via the bridge itself, so registration logic lives in exactly one place.
+	fmt.Println("\033[1m[3/5] Installing native messaging host...\033[0m")
+	if out, err := exec.Command(bridgePath, "--install-native").CombinedOutput(); err != nil {
+		return fmt.Errorf("bridge --install-native failed: %w: %s", err, strings.TrimSpace(string(out)))
 	}
-	if err := os.WriteFile(manifestPath, manifestJSON, 0644); err != nil {
-		return fmt.Errorf("failed to write manifest file: %w", err)
-	}
-	fmt.Printf("  \033[32m✔ Written manifest: %s\033[0m\n", manifestPath)
+	fmt.Println("  \033[32m✔ Native messaging host manifest written and browser keys registered\033[0m")
 
-	// 4. Register browser keys
-	fmt.Println("\033[1m[4/6] Registering Chromium browser native messaging keys...\033[0m")
-	registeredCount := 0
-	for _, key := range BrowserRegistryKeys {
-		cmd := exec.Command("reg", "add", key, "/ve", "/t", "REG_SZ", "/d", manifestPath, "/f")
-		if err := cmd.Run(); err == nil {
-			registeredCount++
-		}
-	}
-	if registeredCount == 0 {
-		return fmt.Errorf("failed to register native messaging host in any supported browser registry key")
-	}
-	fmt.Printf("  \033[32m✔ Successfully registered in %d Chromium browser locations\033[0m\n", registeredCount)
-
-	// 5. Update User PATH
-	fmt.Println("\033[1m[5/6] Configuring user environment PATH...\033[0m")
+	// 4. Update User PATH
+	fmt.Println("\033[1m[4/5] Configuring user environment PATH...\033[0m")
 	if err := addDirectoryToUserPath(installDir); err != nil {
 		fmt.Printf("  \033[33m⚠ Note: PATH update skipped or manual: %v\033[0m\n", err)
 	} else {
 		fmt.Printf("  \033[32m✔ Added %s to User PATH\033[0m\n", installDir)
 	}
 
-	// 6. Check dependencies
-	fmt.Println("\033[1m[6/6] Checking system requirements...\033[0m")
+	// 5. Check dependencies
+	fmt.Println("\033[1m[5/5] Checking system requirements...\033[0m")
 	var missingDeps []string
 	if _, err := exec.LookPath("yt-dlp"); err != nil {
 		missingDeps = append(missingDeps, "yt-dlp")

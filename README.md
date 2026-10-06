@@ -8,7 +8,7 @@
 
 ---
 
-VampYTD is a Windows-first video downloader with a companion browser extension for Chromium and Firefox. It uses `yt-dlp` for extraction, FFmpeg for merging and trimming, and an optional FZF interface for choosing streams.
+VampYTD is a Windows-first video downloader with a companion browser extension for Chromium browsers. It uses `yt-dlp` for extraction, FFmpeg for merging and trimming, and an optional FZF interface for choosing streams.
 
 ## Features at a glance
 
@@ -80,7 +80,7 @@ The extension features:
 
 Native messaging launches the bridge process on demand with zero permanent background tasks, startup shortcuts, or listening network ports.
 
-The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd` (Chromium) and `vampytd@vampdued.github.io` (Firefox).
+The unpacked extension ID is pinned to `jjacbochmpbgpfpbfclmileocddkncgd`.
 
 ## Command-line usage
 
@@ -180,7 +180,7 @@ To keep active local development cleanly separated from your normal installed ve
 ```text
 cmd/ytd/            downloader command-line application
 cmd/bridge/         native messaging bridge for browser integration
-VampYTDExtension/   Chromium & Firefox Manifest V3 browser extension
+VampYTDExtension/   Chromium Manifest V3 browser extension
 Install-VampYTD.cmd double-click Windows installer wrapper
 Uninstall-VampYTD.cmd double-click Windows uninstaller wrapper
 deploy.ps1          PowerShell installation and dependency logic

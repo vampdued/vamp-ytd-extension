@@ -115,9 +115,6 @@ Copy-Item -LiteralPath (Join-Path $WorkspaceDir "bridge.exe") -Destination (Join
 
 # Copy Chromium extension directory
 Copy-Item -Path (Join-Path $ExtensionSource "*") -Destination $ExtensionDestination -Recurse -Force
-if (Test-Path -LiteralPath (Join-Path $ExtensionDestination "manifest.firefox.json")) {
-    Remove-Item -LiteralPath (Join-Path $ExtensionDestination "manifest.firefox.json") -Force
-}
 
 Write-Host "Installed to $RunDir" -ForegroundColor Green
 

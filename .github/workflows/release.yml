@@ -101,9 +101,6 @@ jobs:
           $extStaging = "$stagingDir\VampYTDExtension"
           New-Item -ItemType Directory -Path $extStaging -Force | Out-Null
           Copy-Item -Path "VampYTDExtension\*" -Destination $extStaging -Recurse -Force
-          if (Test-Path -LiteralPath "$extStaging\manifest.firefox.json") {
-            Remove-Item -LiteralPath "$extStaging\manifest.firefox.json" -Force
-          }
 
           $zipName = "VampYTD_${tag}_windows_amd64.zip"
           $zipPath = "dist\$zipName"

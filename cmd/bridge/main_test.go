@@ -166,7 +166,6 @@ func TestNativeInvocationDetection(t *testing.T) {
 	if !isNativeInvocation([]string{}) ||
 		!isNativeInvocation([]string{extensionOrigin}) ||
 		!isNativeInvocation([]string{strings.TrimSuffix(extensionOrigin, "/")}) ||
-		!isNativeInvocation([]string{firefoxExtensionID}) ||
 		!isNativeInvocation([]string{"--native-host"}) {
 		t.Fatal("native invocation was not detected")
 	}
@@ -201,43 +200,5 @@ func TestWindowsPathDirIsHostIndependent(t *testing.T) {
 func TestPowerShellSingleQuoteEscapesApostrophes(t *testing.T) {
 	if got, want := powershellSingleQuote("it's"), `'it''s'`; got != want {
 		t.Fatalf("powershellSingleQuote() = %q, want %q", got, want)
-	}
-}
-
-func TestMozillaManifestStructure(t *testing.T) {
-	manifest := MozillaNativeHostManifest{
-		Name:              nativeHostName,
-		Description:       "VampYTD browser integration",
-		Path:              `C:\Program Files\VampYTD\bridge.exe`,
-		Type:              "stdio",
-		AllowedExtensions: []string{firefoxExtensionID},
-	}
-	data, err := json.Marshal(manifest)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var decoded map[string]any
-	if err := json.Unmarshal(data, &decoded); err != nil {
-		t.Fatal(err)
-	}
-	exts, ok := decoded["allowed_extensions"].([]any)
-	if !ok || len(exts) != 1 || exts[0] != firefoxExtensionID {
-		t.Fatalf("allowed_extensions = %#v, want [%s]", decoded["allowed_extensions"], firefoxExtensionID)
-	}
-	if decoded["name"] != nativeHostName {
-		t.Fatalf("name = %v, want %s", decoded["name"], nativeHostName)
-	}
-}
-
-func TestMozillaManifestPaths(t *testing.T) {
-	paths, err := mozillaManifestPaths()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(paths) == 0 {
-		t.Fatal("expected at least one mozilla manifest path")
-	}
-	if !strings.HasSuffix(paths[0], ".json") {
-		t.Fatalf("expected path to end in .json, got: %s", paths[0])
 	}
 }

@@ -44,9 +44,6 @@ try {
         }
         New-Item -ItemType Directory -Path $ExtPayload -Force | Out-Null
         Copy-Item -Path (Join-Path $WorkspaceDir "VampYTDExtension\*") -Destination $ExtPayload -Recurse -Force
-        if (Test-Path -LiteralPath (Join-Path $ExtPayload "manifest.firefox.json")) {
-            Remove-Item -LiteralPath (Join-Path $ExtPayload "manifest.firefox.json") -Force
-        }
 
         & $goPath build -o (Join-Path $WorkspaceDir "VampYTD-Setup.exe") ./cmd/installer
         if ($LASTEXITCODE -ne 0) { throw "Building VampYTD-Setup.exe failed." }

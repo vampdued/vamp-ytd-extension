@@ -41,7 +41,7 @@
 - **Pure Native Messaging Architecture**:
   - Removed localhost HTTP server fallback and port 8080 entirely.
   - Removed all browser `host_permissions` (`host_permissions: []`), ensuring zero unnecessary permissions.
-  - Pure stdio-based native host communication for Chromium and Firefox.
+  - Pure stdio-based native host communication for Chromium browsers.
 - **Extension UI/UX Overhaul**:
   - Redesigned popup with adaptive light/dark theme matching YouTube's active page (`data-theme="dark"`).
   - Elevated neutral Hero Media Card with crimson left signpost and one-click download CTA.
