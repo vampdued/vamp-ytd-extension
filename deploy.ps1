@@ -22,10 +22,6 @@ $OptionalDependencies = @(
 # Any one of Deno / Bun / Node.js satisfies the JS runtime requirement.
 $JsRuntimeCommands = @("deno", "bun", "node")
 $JsRuntimeFound = $JsRuntimeCommands | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
-if (-not $JsRuntimeFound -and $InstallDependencies) {
-    # Only offer Node.js (the most common) when no runtime exists at all.
-    $OptionalDependencies += [pscustomobject]@{ Name = "Node.js"; Command = "node"; Package = "OpenJS.NodeJS.LTS" }
-}
 
 function Write-Step([string]$Text) {
     Write-Host "`n$Text" -ForegroundColor Cyan
@@ -73,10 +69,14 @@ $toInstall = @()
 
 if ($InstallDependencies) {
     $toInstall += $missingRequired
+    if (-not $JsRuntimeFound) {
+        # No JS runtime at all: offer Node.js (the most common one) via winget.
+        $toInstall += [pscustomobject]@{ Name = "Node.js"; Command = "node"; Package = "OpenJS.NodeJS.LTS" }
+    }
 }
-if ($InstallDependencies -or $InstallFZF) {
-    $missingOptional = Get-MissingDependencies -List $OptionalDependencies
-    $toInstall += $missingOptional
+if ($InstallFZF) {
+    # FZF is purely optional and is only installed on explicit request.
+    $toInstall += Get-MissingDependencies -List $OptionalDependencies
 }
 
 if ($toInstall.Count -gt 0) {
@@ -134,17 +134,6 @@ Write-Step "[5/5] Registering the browser connection"
 if (Test-Path -LiteralPath $StartupPath) {
     Remove-Item -LiteralPath $StartupPath -Force -ErrorAction SilentlyContinue
 }
-try {
-    $existingTask = Get-ScheduledTask -TaskName "VampYTDBridge" -ErrorAction SilentlyContinue
-    if ($existingTask) {
-        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-            [Security.Principal.WindowsBuiltInRole]::Administrator
-        )
-        if ($isAdmin) {
-            Unregister-ScheduledTask -TaskName "VampYTDBridge" -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
-        }
-    }
-} catch {}
 
 & (Join-Path $RunDir "bridge.exe") --install-native
 if ($LASTEXITCODE -ne 0) { throw "Native messaging registration failed with exit code $LASTEXITCODE." }

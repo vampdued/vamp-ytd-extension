@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipInstaller
+    [switch]$SkipInstaller,
+    [switch]$Dev
 )
 
 $ErrorActionPreference = "Stop"
@@ -32,7 +33,30 @@ try {
     & $goPath build -o (Join-Path $WorkspaceDir "bridge.exe") ./cmd/bridge
     if ($LASTEXITCODE -ne 0) { throw "Building bridge.exe failed." }
 
-    if (-not $SkipInstaller) {
+    if ($Dev) {
+        Write-Host "[3/3] Activating dev mode..." -ForegroundColor Gray
+
+        # Point the native messaging host at this workspace's bridge.exe
+        & (Join-Path $WorkspaceDir "bridge.exe") --install-native
+        if ($LASTEXITCODE -ne 0) { throw "Native messaging registration failed with exit code $LASTEXITCODE." }
+
+        $ExtensionSource = Join-Path $WorkspaceDir "VampYTDExtension"
+        try {
+            Set-Clipboard -Value $ExtensionSource
+            Write-Host "Copied workspace extension path to clipboard: $ExtensionSource" -ForegroundColor Green
+        } catch {
+            Write-Warning "Could not copy path to clipboard automatically."
+        }
+
+        Write-Host "`n========================================================" -ForegroundColor Yellow
+        Write-Host " [DEV MODE ACTIVE]" -ForegroundColor Yellow
+        Write-Host "========================================================" -ForegroundColor Yellow
+        Write-Host "- Native host binary: $(Join-Path $WorkspaceDir 'bridge.exe')"
+        Write-Host "- Browser extension:  $ExtensionSource"
+        Write-Host "- To test changes:    Edit files in the repo, then click 'Reload' in chrome://extensions"
+        Write-Host "- To restore normal:  Run Install-VampYTD.cmd to switch back to %LOCALAPPDATA%\VampYTD"
+        Write-Host "========================================================`n" -ForegroundColor Yellow
+    } elseif (-not $SkipInstaller) {
         Write-Host "[3/3] Staging payload and building VampYTD-Setup.exe..." -ForegroundColor Gray
         New-Item -ItemType Directory -Path $PayloadDir -Force | Out-Null
         Copy-Item -LiteralPath (Join-Path $WorkspaceDir "ytd.exe") -Destination (Join-Path $PayloadDir "ytd.exe") -Force
@@ -47,14 +71,17 @@ try {
 
         & $goPath build -o (Join-Path $WorkspaceDir "VampYTD-Setup.exe") ./cmd/installer
         if ($LASTEXITCODE -ne 0) { throw "Building VampYTD-Setup.exe failed." }
-    }
 
-    Write-Host "`nBuild completed successfully." -ForegroundColor Green
-    Write-Host "Generated binaries:"
-    Write-Host "  - $(Join-Path $WorkspaceDir 'ytd.exe')"
-    Write-Host "  - $(Join-Path $WorkspaceDir 'bridge.exe')"
-    if (-not $SkipInstaller) {
+        Write-Host "`nBuild completed successfully." -ForegroundColor Green
+        Write-Host "Generated binaries:"
+        Write-Host "  - $(Join-Path $WorkspaceDir 'ytd.exe')"
+        Write-Host "  - $(Join-Path $WorkspaceDir 'bridge.exe')"
         Write-Host "  - $(Join-Path $WorkspaceDir 'VampYTD-Setup.exe')"
+    } else {
+        Write-Host "`nBuild completed successfully." -ForegroundColor Green
+        Write-Host "Generated binaries:"
+        Write-Host "  - $(Join-Path $WorkspaceDir 'ytd.exe')"
+        Write-Host "  - $(Join-Path $WorkspaceDir 'bridge.exe')"
     }
 } finally {
     # Clean up staged binaries from payload folder, keeping placeholder.txt

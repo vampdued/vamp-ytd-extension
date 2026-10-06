@@ -170,7 +170,7 @@ func die(msg string) {
 	fmt.Fprintln(os.Stderr, red("Error: ")+msg)
 	if isSpawned {
 		fmt.Fprintln(os.Stderr, yellow("\nPress Enter to close this window..."))
-		bufio.NewReader(os.Stdin).ReadBytes('\n')
+		_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 	}
 	os.Exit(1)
 }
@@ -210,51 +210,109 @@ func matchesCodec(vcodec, reqCodec string) bool {
 // ARGUMENT PARSING
 // ==============================================================================
 
-func parseArgs() (updateMode bool, quickMode bool, quickOptions string, trimMode, useCookies bool, startTime, endTime, url string) {
-	args := os.Args[1:]
+// parsedArgs holds the result of command-line parsing. parseArgsFrom is the
+// testable core; parseArgs feeds it os.Args.
+type parsedArgs struct {
+	updateMode   bool
+	quickMode    bool
+	quickOptions string
+	trimMode     bool
+	useCookies   bool
+	startTime    string
+	endTime      string
+	url          string
+	dirFlag      string
+	showHelp     bool
+}
+
+func parseArgs() parsedArgs {
+	return parseArgsFrom(os.Args[1:])
+}
+
+func parseArgsFrom(args []string) (pa parsedArgs) {
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
 		case arg == "-U" || arg == "--update" || arg == "--upgrade":
-			updateMode = true
+			pa.updateMode = true
 		case arg == "--spawned":
 			isSpawned = true
 		case arg == "-q" || arg == "--quick":
-			quickMode = true
+			pa.quickMode = true
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !strings.HasPrefix(args[i+1], "http") {
-				quickOptions = args[i+1]
+				pa.quickOptions = args[i+1]
 				i++
 			}
 		case strings.HasPrefix(arg, "-q="):
-			quickMode = true
-			quickOptions = arg[3:]
+			pa.quickMode = true
+			pa.quickOptions = arg[3:]
 		case arg == "-c" || arg == "--cookies":
-			useCookies = true
-		case arg == "-t" || arg == "--trim":
-			trimMode = true
-			if i+1 < len(args) && regexp.MustCompile(`^\d`).MatchString(args[i+1]) {
+			pa.useCookies = true
+		case arg == "-d" || arg == "--dir":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 				i++
-				startTime = args[i]
-				if i+1 < len(args) && regexp.MustCompile(`^\d`).MatchString(args[i+1]) {
+				pa.dirFlag = args[i]
+			}
+		case arg == "-t" || arg == "--trim":
+			pa.trimMode = true
+			if i+1 < len(args) && trimTimeRe.MatchString(args[i+1]) {
+				i++
+				pa.startTime = args[i]
+				if i+1 < len(args) && trimTimeRe.MatchString(args[i+1]) {
 					i++
-					endTime = args[i]
+					pa.endTime = args[i]
 				}
 			}
 		case arg == "-h" || arg == "--help":
-			fmt.Println(`VampYTD`)
-			fmt.Println(`Usage: VampYTD [FLAGS] "URL"`)
-			fmt.Println(`  -q [opts] : Quick Mode (e.g. -q 1080p,av1). Leave empty for fastest default max-quality download.`)
-			fmt.Println(`  -c        : Enable Cookies (Auto selects file)`)
-			fmt.Println(`  -t        : Trim Mode (e.g. -t 8:20 12:20)`)
-			fmt.Println(`  -U        : Update yt-dlp to latest version`)
-			os.Exit(0)
+			pa.showHelp = true
 		default:
 			if strings.HasPrefix(arg, "http") {
-				url = arg
+				pa.url = arg
 			}
 		}
 	}
-	return
+	return pa
+}
+
+func printHelp() {
+	fmt.Println(`VampYTD`)
+	fmt.Println(`Usage: VampYTD [FLAGS] "URL"`)
+	fmt.Println(`  -q [opts] : Quick Mode (e.g. -q 1080p,av1). Leave empty for fastest default max-quality download.`)
+	fmt.Println(`  -c        : Enable Cookies (Auto selects file)`)
+	fmt.Println(`  -d, --dir : Download directory (default ~/Downloads/VampYTD; VAMPYTD_DIR env also works)`)
+	fmt.Println(`  -t        : Trim Mode (e.g. -t 8:20 12:20)`)
+	fmt.Println(`  -U        : Update yt-dlp to latest version`)
+}
+
+// trimTimeRe matches the start of a trim timestamp (e.g. "8:20").
+var trimTimeRe = regexp.MustCompile(`^\d`)
+
+// parseQuickOptions interprets the -q option list (e.g. "1080p,av1"),
+// returning the max resolution and/or requested codec.
+func parseQuickOptions(quickOptions string) (maxRes int, reqCodec string) {
+	for _, part := range strings.Split(quickOptions, ",") {
+		p := strings.ToLower(strings.TrimSpace(part))
+		if p == "" {
+			continue
+		}
+		switch p {
+		case "8k":
+			maxRes = 4320
+		case "4k":
+			maxRes = 2160
+		case "2k":
+			maxRes = 1440
+		default:
+			// Strip one trailing "p" ("1080p" -> 1080); anything else that
+			// isn't a plain number is treated as a codec name.
+			if val, err := strconv.Atoi(strings.TrimSuffix(p, "p")); err == nil {
+				maxRes = val
+			} else {
+				reqCodec = p
+			}
+		}
+	}
+	return maxRes, reqCodec
 }
 
 // ==============================================================================
@@ -381,8 +439,10 @@ func fetchMetadata(url string, cookieCmd []string) VideoMetadata {
 
 	var meta VideoMetadata
 	if err := json.Unmarshal(out, &meta); err != nil {
-		os.WriteFile("ytd-error.log", out, 0644)
-		die("Could not parse yt-dlp output as JSON. Raw output saved to ytd-error.log")
+		logPath := filepath.Join(downloadDir, "ytd-error.log")
+		_ = os.MkdirAll(downloadDir, 0755)
+		_ = os.WriteFile(logPath, out, 0644)
+		die("Could not parse yt-dlp output as JSON. Raw output saved to " + logPath)
 	}
 
 	if len(meta.Formats) == 0 {
@@ -835,14 +895,14 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 						} else if strings.HasPrefix(line, "[info]") {
 							line = gray(line)
 						}
-						os.Stdout.Write([]byte(line))
+						_, _ = os.Stdout.Write([]byte(line))
 					}
 					lineBuf = lineBuf[:0] // Reset buffer
 				}
 			}
 			if err != nil {
 				if len(lineBuf) > 0 {
-					os.Stdout.Write(lineBuf)
+					_, _ = os.Stdout.Write(lineBuf)
 				}
 				break
 			}
@@ -875,42 +935,37 @@ func main() {
 	cookiesJHS = filepath.Join(configRoot, "vampytd", "cookies-jhs.txt")
 	downloadDir = filepath.Join(home, "Downloads", "VampYTD")
 
-	quickMode, quickOptions, trimMode, useCookies, startTime, endTime, url := func() (bool, string, bool, bool, string, string, string) {
-		up, qm, qo, tm, uc, st, et, u := parseArgs()
-		if up {
-			runUpdate()
-			os.Exit(0)
-		}
-		return qm, qo, tm, uc, st, et, u
-	}()
+	// Env overrides for the config file locations (flags take precedence below).
+	if env := os.Getenv("VAMPYTD_COOKIES_YT"); env != "" {
+		cookiesYT = env
+	}
+	if env := os.Getenv("VAMPYTD_COOKIES_JHS"); env != "" {
+		cookiesJHS = env
+	}
+
+	pa := parseArgs()
+	if pa.showHelp {
+		printHelp()
+		os.Exit(0)
+	}
+	if pa.updateMode {
+		runUpdate()
+		os.Exit(0)
+	}
+	if pa.dirFlag != "" {
+		downloadDir = pa.dirFlag
+	} else if env := os.Getenv("VAMPYTD_DIR"); env != "" {
+		downloadDir = env
+	}
+	quickMode, quickOptions := pa.quickMode, pa.quickOptions
+	trimMode, useCookies := pa.trimMode, pa.useCookies
+	startTime, endTime, url := pa.startTime, pa.endTime, pa.url
 
 	if strings.TrimSpace(url) == "" {
 		die("No URL provided.")
 	}
 
-	maxRes := 0
-	reqCodec := ""
-	if quickOptions != "" {
-		parts := strings.Split(quickOptions, ",")
-		for _, p := range parts {
-			p = strings.ToLower(strings.TrimSpace(p))
-			if p == "" {
-				continue
-			}
-			resStr := strings.TrimRight(p, "pk")
-			if p == "4k" {
-				maxRes = 2160
-			} else if p == "8k" {
-				maxRes = 4320
-			} else if p == "2k" {
-				maxRes = 1440
-			} else if val, err := strconv.Atoi(resStr); err == nil {
-				maxRes = val
-			} else {
-				reqCodec = p
-			}
-		}
-	}
+	maxRes, reqCodec := parseQuickOptions(quickOptions)
 
 	if !pathutil.CommandAvailable(ytdlp) {
 		die("yt-dlp is required and was not found in PATH.")

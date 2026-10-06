@@ -260,7 +260,7 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 	}
 
 	if foundTerminal == "" {
-		fmt.Fprintln(diagnosticWriter, "No terminal emulator found. Spawning raw background process...")
+		_, _ = fmt.Fprintln(diagnosticWriter, "No terminal emulator found. Spawning raw background process...")
 		args := append([]string{}, ytdArgs...)
 		cmd := exec.Command(ytdPath, args...)
 		cmd.Stdout = os.Stdout
@@ -278,7 +278,7 @@ func launchTerminal(ytdPath string, ytdArgs []string) error {
 		cmdArgs = append([]string{"-e", ytdPath}, ytdArgs...)
 	}
 
-	fmt.Fprintf(diagnosticWriter, "Launching terminal: %s %v\n", foundTerminal, cmdArgs)
+	_, _ = fmt.Fprintf(diagnosticWriter, "Launching terminal: %s %v\n", foundTerminal, cmdArgs)
 	cmd := exec.Command(foundTerminal, cmdArgs...)
 	cmd.Env = append(os.Environ(), displayEnv()...)
 	return cmd.Start()

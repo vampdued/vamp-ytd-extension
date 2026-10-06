@@ -28,10 +28,13 @@ jobs:
         shell: powershell
         run: go vet ./...
 
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v6
+
       - name: Validate PowerShell Scripts
         shell: powershell
         run: |
-          $scripts = @('deploy.ps1', 'uninstall.ps1', 'build.ps1', 'setup-dev.ps1', 'install.ps1')
+          $scripts = @('deploy.ps1', 'uninstall.ps1', 'build.ps1', 'install.ps1')
           foreach ($script in $scripts) {
             if (Test-Path -LiteralPath $script) {
               $tokens = $null

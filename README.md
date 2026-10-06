@@ -159,7 +159,7 @@ go build -o bridge.exe ./cmd/bridge
 To keep active local development cleanly separated from your normal installed version of VampYTD:
 
 - **Switch to Dev Mode**:
-  Double-click `dev.cmd` (or run `./setup-dev.ps1` in PowerShell).
+  Double-click `dev.cmd` (or run `./build.ps1 -Dev` in PowerShell).
   - Automatically compiles `ytd.exe` and `bridge.exe` directly in your Git workspace.
   - Registers the native messaging host to point directly to your workspace repository.
   - Copies the workspace extension path (`...\vamp-ytd-extension\VampYTDExtension`) to your clipboard.
@@ -174,6 +174,10 @@ To keep active local development cleanly separated from your normal installed ve
 
 - **`main`**: Protected branch for stable production releases. Commits tagged with a version (e.g. `v1.4.0`) automatically build and publish release binaries.
 - **`dev`**: Active development branch where ongoing features, experiments, and fixes are developed and tested before merging into `main`.
+
+### Running tests
+
+`go test ./...` runs the full suite, but the tests are Windows-only by nature — they exercise the registry, WinGet PATH scanning, and PowerShell quoting. Run them on Windows (or rely on CI's `windows-latest` job); they won't compile on other platforms. CI also runs `go vet` and `golangci-lint`.
 
 ## Project layout
 
@@ -194,5 +198,25 @@ spec.md             downloader technical specification
 GitHub Releases are completely automated via GitHub Actions:
 - Merging code into **`main`** with an updated version in `VampYTDExtension/manifest.json` automatically creates the release tag, builds the Windows AMD64 ZIP archive (via `build.ps1`), generates checksums, and publishes the release.
 - Releases can also be triggered manually using the **Run workflow** button in the GitHub Actions `Release` tab.
+
+### Code signing (removes the SmartScreen warning)
+
+Release binaries are currently unsigned, so Windows SmartScreen shows a warning on first run. The real fix is an OV code-signing certificate (e.g. SSL.com, DigiCert, or Sectigo — roughly $100–300/yr for OV). Once you have the cert in a PFX file:
+
+```powershell
+signtool sign /fd SHA256 /f cert.pfx /p <password> /tr http://timestamp.digicert.com /td SHA256 VampYTD-Setup.exe
+```
+
+Sign `VampYTD-Setup.exe` (and optionally `ytd.exe` / `bridge.exe`) as a post-build step in `release.yml` before checksums are generated. For local testing only, a self-signed cert works: `New-SelfSignedCertificate -Type CodeSigningCert`, but it won't silence SmartScreen on other machines.
+
+### Enterprise / managed installs (true 1-click)
+
+On consumer Chrome, Developer mode + "Load unpacked" is always a manual step — that's a platform limit, not a bug. On managed machines (Group Policy / Intune / Chrome Enterprise), the extension can be force-installed silently via `ExtensionInstallForcelist`:
+
+1. Host the packed extension (`.crx`, packed with the pinned private key so the ID stays `jjacbochmpbgpfpbfclmileocddkncgd`).
+2. Set the policy `ExtensionInstallForcelist` to `jjacbochmpbgpfpbfclmileocddkncgd;<update-url>`.
+3. Deploy `VampYTD-Setup.exe` (or `deploy.ps1`) via your software distribution — the native host registration is per-user (HKCU), no admin needed.
+
+That combination is the true zero-click install path for fleets.
 
 VampYTD is released under the [MIT License](LICENSE).

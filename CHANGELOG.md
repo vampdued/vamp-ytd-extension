@@ -1,5 +1,18 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+- Build scripts consolidated: `build.ps1 -Dev` replaces `setup-dev.ps1` (deleted); `dev.cmd` now calls `build.ps1 -Dev`.
+- `deploy.ps1 -InstallDependencies` no longer installs the optional FZF (use `-InstallFZF` explicitly); Node.js is only suggested when no JS runtime exists.
+- `ytd` accepts `--dir`/`-d` for the download directory (`VAMPYTD_DIR` env also works); cookie file paths overridable via `VAMPYTD_COOKIES_YT`/`VAMPYTD_COOKIES_JHS`; `ytd-error.log` now lands in the download dir instead of the CWD.
+- `ytd` arg parsing refactored into testable `parseArgsFrom` + `parseQuickOptions` with table-driven tests; quick-mode resolution parsing fixed (`TrimSuffix` instead of `TrimRight`).
+- Removed dead `VampYTDBridge` scheduled-task cleanup from `deploy.ps1`/`uninstall.ps1`.
+
+### Added
+- CI now runs `golangci-lint`; README notes tests are Windows-only by nature.
+- README documents the code-signing path (removes SmartScreen warning) and the `ExtensionInstallForcelist` true-1-click path for managed/enterprise installs.
+
 ## 1.5.2 — 2026-10-06
 
 ### Fixed

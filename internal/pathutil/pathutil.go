@@ -119,7 +119,7 @@ func refreshPATHNow() {
 		finalEntries = append(finalEntries, p)
 	}
 
-	os.Setenv("PATH", strings.Join(finalEntries, ";"))
+	_ = os.Setenv("PATH", strings.Join(finalEntries, ";"))
 }
 
 // CommandAvailable reports whether name resolves in PATH, refreshing the
@@ -167,7 +167,7 @@ func getRegistryEnv(key syscall.Handle, subkey, valueName string) string {
 	if err := syscall.RegOpenKeyEx(key, subKeyPtr, 0, syscall.KEY_READ, &hKey); err != nil {
 		return ""
 	}
-	defer syscall.RegCloseKey(hKey)
+	defer func() { _ = syscall.RegCloseKey(hKey) }()
 
 	valPtr, _ := syscall.UTF16PtrFromString(valueName)
 	var bufSize uint32

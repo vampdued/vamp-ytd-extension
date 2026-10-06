@@ -37,7 +37,7 @@ func enableVTMode() {
 	procSetConsoleMode := syscall.NewLazyDLL("kernel32.dll").NewProc("SetConsoleMode")
 	r1, _, _ := procGetConsoleMode.Call(uintptr(h), uintptr(unsafe.Pointer(&mode)))
 	if r1 != 0 {
-		procSetConsoleMode.Call(uintptr(h), uintptr(mode|0x0004))
+		_, _, _ = procSetConsoleMode.Call(uintptr(h), uintptr(mode|0x0004))
 	}
 }
 
