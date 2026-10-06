@@ -115,7 +115,7 @@ func runInstall() error {
 
 	// 1. Terminate existing bridge processes
 	fmt.Println("\033[1m[1/6] Terminating active bridge processes (if running)...\033[0m")
-	_ = exec.Command("taskkill", "/F", "/IM", "bridge.exe").Run()
+	killOwnBridge(installDir)
 	fmt.Println("  \033[32m✔ Ready for file installation\033[0m")
 
 	// 2. Extract embedded binaries and extension files
@@ -262,7 +262,7 @@ func runUninstall() error {
 
 	// 1. Terminate bridge
 	fmt.Println("\033[1m[1/4] Terminating running bridge processes...\033[0m")
-	_ = exec.Command("taskkill", "/F", "/IM", "bridge.exe").Run()
+	killOwnBridge(installDir)
 	fmt.Println("  \033[32m✔ Done\033[0m")
 
 	// 2. Remove registry keys
@@ -302,6 +302,7 @@ func runUninstall() error {
 }
 
 func addDirectoryToUserPath(dir string) error {
+	q := psQuote(dir)
 	cmd := fmt.Sprintf(`
 		$path = [Environment]::GetEnvironmentVariable('Path', 'User')
 		$entries = @($path -split ';' | Where-Object { $_ })
@@ -309,23 +310,37 @@ func addDirectoryToUserPath(dir string) error {
 			$newPath = ($entries + '%s') -join ';'
 			[Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
 		}
-	`, dir, dir)
+	`, q, q)
 	return exec.Command("powershell", "-NoProfile", "-Command", cmd).Run()
 }
 
 func removeDirectoryFromUserPath(dir string) error {
+	q := psQuote(dir)
 	cmd := fmt.Sprintf(`
 		$path = [Environment]::GetEnvironmentVariable('Path', 'User')
 		$entries = @($path -split ';' | Where-Object { $_ -and $_ -ne '%s' })
 		$newPath = $entries -join ';'
 		[Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
-	`, dir)
+	`, q)
 	return exec.Command("powershell", "-NoProfile", "-Command", cmd).Run()
 }
 
 func copyPathToClipboard(path string) error {
-	cmd := fmt.Sprintf("Set-Clipboard -Value '%s'", path)
+	cmd := fmt.Sprintf("Set-Clipboard -Value '%s'", psQuote(path))
 	return exec.Command("powershell", "-NoProfile", "-Command", cmd).Run()
+}
+
+// psQuote escapes a string for embedding in a single-quoted PowerShell string.
+func psQuote(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+// killOwnBridge terminates only bridge.exe processes running from our own
+// install directory (never an unrelated bridge.exe elsewhere on the system).
+func killOwnBridge(installDir string) {
+	bridgePath := filepath.Join(installDir, "bridge.exe")
+	cmd := fmt.Sprintf(`$procs = Get-CimInstance Win32_Process -Filter "Name = 'bridge.exe'" -ErrorAction SilentlyContinue | Where-Object { $_.ExecutablePath -eq '%s' }; foreach ($p in $procs) { Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue }`, psQuote(bridgePath))
+	_ = exec.Command("powershell", "-NoProfile", "-Command", cmd).Run()
 }
 
 func openExtensionsPage() {

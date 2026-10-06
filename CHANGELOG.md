@@ -1,6 +1,17 @@
 # Changelog
 
-## 1.5.1 - JS Runtime Auto-Detection
+## [Unreleased]
+
+### Fixed
+- Web installer (`install.ps1`) now downloads `checksums.txt` and verifies the SHA-256 of `VampYTD-Setup.exe` before running it.
+- Bridge native-host registration no longer aborts on the first browser failure — it registers every browser it can and fails only if none succeeded.
+- Installer PATH update now handles usernames with apostrophes, and only terminates `bridge.exe` processes from our own install directory.
+- Popup diagnostics accept any JS runtime (Deno, Bun, or Node.js); the bridge reports the detected `jsRuntime` and the popup shows its name.
+- `deploy.ps1` no longer forces a Node.js install — Node is suggested only when no JS runtime exists at all.
+- Release workflow no longer silently re-publishes assets on merges without a version bump.
+- Removed dead `.goreleaser.yaml`; corrected README release/Go-version claims.
+
+## 1.5.1 — 2026-09-29 — JS Runtime Auto-Detection
 
 - **Auto-detect JavaScript runtime for yt-dlp**:
   - Removed hard-coded dependency on Node.js (`--js-runtime node`).
@@ -8,7 +19,7 @@
   - If none of the three runtimes are found, the flag is omitted and yt-dlp surfaces its own diagnostic error.
   - Eliminates the `"Node.js is required… not found in PATH"` crash for users with Deno or Bun installed.
 
-## 1.5.0 - Standalone Setup Executable & Streamlined Distribution
+## 1.5.0 — 2026-09-25 — Standalone Setup Executable & Streamlined Distribution
 
 - **Standalone Windows Installer (`VampYTD-Setup.exe`)**:
   - Self-contained executable embedding `ytd.exe`, `bridge.exe`, and packed Chromium extension files with zero external dependencies.
@@ -23,7 +34,7 @@
 - **Automated GitHub Release Pipeline**:
   - Automatic version tag detection, build, and release asset generation on push to `main`.
 
-## 1.4.0 - Pure Native Overhaul & YouTube Power Tools
+## 1.4.0 — 2026-09-25 — Pure Native Overhaul & YouTube Power Tools
 
 - **Branding & Visual Identity**:
   - Official new high-definition brand logo and icons across browser extensions and documentation.
@@ -51,7 +62,7 @@
   - Fixed DOMException on in-player crop button insertion when fullscreen button is nested in sub-wrappers (`content.js`).
   - Fixed duplicate button creation during SPA navigation (`yt-navigate-finish`).
 
-## 1.3.0 - Windows release candidate
+## 1.3.0 — 2026-07-20 — Windows release candidate
 
 - Added a double-click Windows installer with dependency setup and repair support.
 - Replaced the permanent background bridge with on-demand native messaging.
@@ -61,6 +72,6 @@
 - Added Windows AMD64 and ARM64 release archives, checksums, and attestations.
 - Licensed the project under the MIT License.
 
-## 1.0.0
+## 1.0.0 — 2026-06-08
 
 - Initial command-line downloader and browser integration.

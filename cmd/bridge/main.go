@@ -46,7 +46,8 @@ type NativeResponse struct {
 	Downloader  bool   `json:"downloader"`
 	YTDLP       bool   `json:"ytDlp"`
 	FFmpeg      bool   `json:"ffmpeg"`
-	Node        bool   `json:"node"`
+	Node        bool   `json:"node"` // deprecated: use JSRuntime; kept for older popups
+	JSRuntime   string `json:"jsRuntime,omitempty"`
 	FZF         bool   `json:"fzf"`
 }
 
@@ -183,6 +184,17 @@ func commandAvailable(name string) bool {
 	return err == nil
 }
 
+// detectJSRuntime probes deno → bun → node in PATH (matching ytd's order)
+// and returns the first available runtime's name, or "" when none is found.
+func detectJSRuntime() string {
+	for _, candidate := range []string{"deno", "bun", "node"} {
+		if commandAvailable(candidate) {
+			return candidate
+		}
+	}
+	return ""
+}
+
 func diagnosticResponse() NativeResponse {
 	refreshPATH()
 	home, _ := os.UserHomeDir()
@@ -202,6 +214,9 @@ func diagnosticResponse() NativeResponse {
 		}
 	}
 
+	// Any one of deno / bun / node satisfies the JS runtime requirement.
+	jsRuntime := detectJSRuntime()
+
 	return NativeResponse{
 		OK:          true,
 		Platform:    runtime.GOOS,
@@ -209,7 +224,8 @@ func diagnosticResponse() NativeResponse {
 		Downloader:  downloaderAvailable,
 		YTDLP:       commandAvailable("yt-dlp"),
 		FFmpeg:      commandAvailable("ffmpeg"),
-		Node:        commandAvailable("node"),
+		Node:        jsRuntime == "node",
+		JSRuntime:   jsRuntime,
 		FZF:         commandAvailable("fzf"),
 	}
 }
@@ -627,11 +643,17 @@ func installNativeHost() error {
 			`HKCU\Software\BraveSoftware\Brave-Browser\NativeMessagingHosts\` + nativeHostName,
 			`HKCU\Software\Vivaldi\NativeMessagingHosts\` + nativeHostName,
 		}
+		registered := 0
 		for _, key := range registries {
 			cmd := exec.Command("reg.exe", "add", key, "/ve", "/t", "REG_SZ", "/d", paths[0], "/f")
 			if output, err := cmd.CombinedOutput(); err != nil {
-				return fmt.Errorf("registering %s: %w: %s", key, err, strings.TrimSpace(string(output)))
+				fmt.Fprintf(os.Stderr, "warning: registering %s: %v: %s\n", key, err, strings.TrimSpace(string(output)))
+				continue
 			}
+			registered++
+		}
+		if registered == 0 {
+			return fmt.Errorf("failed to register the native messaging host for any browser")
 		}
 
 		mozKey := `HKCU\Software\Mozilla\NativeMessagingHosts\` + nativeHostName

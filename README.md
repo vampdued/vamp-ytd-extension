@@ -63,7 +63,7 @@ The installer sets up dependencies automatically via Windows Package Manager (`w
 | --- | --- | --- | --- |
 | `yt-dlp` | Yes | Yes (`yt-dlp.yt-dlp`) | Video extraction and download |
 | FFmpeg | Yes | Yes (`Gyan.FFmpeg`) | Merging, thumbnails, and trimming |
-| Node.js | Yes | Yes (`OpenJS.NodeJS.LTS`) | JavaScript runtime used by `yt-dlp` |
+| JS runtime (Deno, Bun, or Node.js) | Yes (any one) | Yes (`OpenJS.NodeJS.LTS`, only when none found) | JavaScript runtime used by `yt-dlp` |
 | FZF | Optional | Yes (`junegunn.fzf`) | Enhanced interactive format picker (falls back to numbered lists if missing) |
 
 Keep `yt-dlp` current (`ytd -U`, `yt-dlp -U`, or `winget upgrade yt-dlp.yt-dlp`) as video site extractors update frequently. VampYTD also checks for updates periodically and displays a notice if `yt-dlp` is older than 30 days.
@@ -146,7 +146,7 @@ To specifically install FZF via winget during manual setup:
 ./deploy.ps1 -InstallFZF
 ```
 
-Building from source requires Go 1.22 or newer:
+Building from source requires Go 1.26 or newer:
 
 ```powershell
 go test ./...
@@ -192,7 +192,7 @@ spec.md             downloader technical specification
 ## Release process
 
 GitHub Releases are completely automated via GitHub Actions:
-- Merging code into **`main`** with an updated version in `VampYTDExtension/manifest.json` automatically creates the release tag, builds Windows AMD64 and ARM64 ZIP archives with GoReleaser, generates checksums, and publishes the release.
+- Merging code into **`main`** with an updated version in `VampYTDExtension/manifest.json` automatically creates the release tag, builds the Windows AMD64 ZIP archive (via `build.ps1`), generates checksums, and publishes the release.
 - Releases can also be triggered manually using the **Run workflow** button in the GitHub Actions `Release` tab.
 
 VampYTD is released under the [MIT License](LICENSE).

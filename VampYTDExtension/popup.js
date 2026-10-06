@@ -51,7 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
       setValue(id, 'Unknown');
       return null;
     } else if (available) {
-      setValue(id, 'Ready', 'good');
+      // A string value means "ready with this name" (e.g. the JS runtime name).
+      setValue(id, typeof available === 'string' ? available : 'Ready', 'good');
       return true;
     } else if (optional) {
       setValue(id, 'Optional', 'warn');
@@ -87,10 +88,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const tDownloader = renderTool('downloader-status', details?.downloader);
     const tYtdlp      = renderTool('ytdlp-status',      details?.ytDlp);
     const tFfmpeg     = renderTool('ffmpeg-status',     details?.ffmpeg);
-    const tNode       = renderTool('node-status',       details?.node);
+    // Any JS runtime (deno / bun / node) satisfies the requirement.
+    const jsRuntimeName = details?.jsRuntime || null;
+    const tJS         = renderTool('node-status', jsRuntimeName ? jsRuntimeName : null);
     renderTool('fzf-status', details?.fzf, true);
 
-    const allRequiredReady = (tDownloader === true && tYtdlp === true && tFfmpeg === true && tNode === true);
+    const allRequiredReady = (tDownloader === true && tYtdlp === true && tFfmpeg === true && tJS === true);
 
     if (toolsStatus && toolsSummary) {
       if (!details) {
@@ -100,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (allRequiredReady) {
         toolsStatus.textContent = 'All Ready';
         toolsStatus.className = 'status-pill good';
-        toolsSummary.textContent = 'yt-dlp, FFmpeg, Node.js, FZF ready';
+        toolsSummary.textContent = 'yt-dlp, FFmpeg, JS runtime, FZF ready';
       } else {
         toolsStatus.textContent = 'Attention';
         toolsStatus.className = 'status-pill warn';

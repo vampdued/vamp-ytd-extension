@@ -13,12 +13,19 @@ $StartupPath = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Sta
 
 $RequiredDependencies = @(
     [pscustomobject]@{ Name = "yt-dlp"; Command = "yt-dlp"; Package = "yt-dlp.yt-dlp" },
-    [pscustomobject]@{ Name = "FFmpeg"; Command = "ffmpeg"; Package = "Gyan.FFmpeg" },
-    [pscustomobject]@{ Name = "Node.js"; Command = "node"; Package = "OpenJS.NodeJS.LTS" }
+    [pscustomobject]@{ Name = "FFmpeg"; Command = "ffmpeg"; Package = "Gyan.FFmpeg" }
 )
 $OptionalDependencies = @(
     [pscustomobject]@{ Name = "FZF"; Command = "fzf"; Package = "junegunn.fzf" }
 )
+
+# Any one of Deno / Bun / Node.js satisfies the JS runtime requirement.
+$JsRuntimeCommands = @("deno", "bun", "node")
+$JsRuntimeFound = $JsRuntimeCommands | Where-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
+if (-not $JsRuntimeFound -and $InstallDependencies) {
+    # Only offer Node.js (the most common) when no runtime exists at all.
+    $OptionalDependencies += [pscustomobject]@{ Name = "Node.js"; Command = "node"; Package = "OpenJS.NodeJS.LTS" }
+}
 
 function Write-Step([string]$Text) {
     Write-Host "`n$Text" -ForegroundColor Cyan
@@ -81,6 +88,11 @@ if ($missingRequired.Count -eq 0) {
     Write-Host "All required tools are available." -ForegroundColor Green
 } else {
     Write-Warning "Missing required tools: $($missingRequired.Name -join ', '). Run Install-VampYTD.cmd for automatic setup."
+}
+if ($JsRuntimeFound) {
+    Write-Host "JS runtime available: $JsRuntimeFound." -ForegroundColor Green
+} else {
+    Write-Warning "No JS runtime found (Deno, Bun or Node.js). Re-run with -InstallDependencies to install Node.js, or install Deno/Bun manually."
 }
 
 Write-Step "[2/5] Preparing VampYTD binaries"

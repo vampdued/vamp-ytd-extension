@@ -49,6 +49,15 @@ jobs:
             git rev-parse "$targetTag" 2>$null
             if ($LASTEXITCODE -eq 0) {
               Write-Host "Tag $targetTag already exists."
+              if ($currentRefType -eq "branch") {
+                # A push to main without a version bump would silently re-publish
+                # (and --clobber) the existing release assets. Refuse instead.
+                $tagCommit = (git rev-parse "$targetTag").Trim()
+                $headCommit = (git rev-parse "HEAD").Trim()
+                if ($tagCommit -ne $headCommit) {
+                  throw "Tag $targetTag already exists at a different commit ($tagCommit). Bump the version in VampYTDExtension/manifest.json before merging to main, or push the $targetTag tag directly to re-release."
+                }
+              }
               git checkout "$targetTag"
             } else {
               Write-Host "Creating new release tag $targetTag..."
