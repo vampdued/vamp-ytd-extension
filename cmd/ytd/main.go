@@ -9,6 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -213,16 +214,19 @@ func matchesCodec(vcodec, reqCodec string) bool {
 // parsedArgs holds the result of command-line parsing. parseArgsFrom is the
 // testable core; parseArgs feeds it os.Args.
 type parsedArgs struct {
-	updateMode   bool
-	quickMode    bool
-	quickOptions string
-	trimMode     bool
-	useCookies   bool
-	startTime    string
-	endTime      string
-	url          string
-	dirFlag      string
-	showHelp     bool
+	updateMode     bool
+	quickMode      bool
+	quickOptions   string
+	trimMode       bool
+	useCookies     bool
+	playlistMode   bool
+	noPlaylistMode bool
+	playlistItems  string
+	startTime      string
+	endTime        string
+	url            string
+	dirFlag        string
+	showHelp       bool
 }
 
 func parseArgs() parsedArgs {
@@ -237,6 +241,19 @@ func parseArgsFrom(args []string) (pa parsedArgs) {
 			pa.updateMode = true
 		case arg == "--spawned":
 			isSpawned = true
+		case arg == "-p" || arg == "--playlist":
+			pa.playlistMode = true
+		case arg == "--no-playlist":
+			pa.noPlaylistMode = true
+		case arg == "-i" || arg == "--items" || arg == "--playlist-items":
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				i++
+				pa.playlistItems = args[i]
+			}
+		case strings.HasPrefix(arg, "--items="):
+			pa.playlistItems = strings.TrimPrefix(arg, "--items=")
+		case strings.HasPrefix(arg, "--playlist-items="):
+			pa.playlistItems = strings.TrimPrefix(arg, "--playlist-items=")
 		case arg == "-q" || arg == "--quick":
 			pa.quickMode = true
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") && !strings.HasPrefix(args[i+1], "http") {
@@ -274,14 +291,27 @@ func parseArgsFrom(args []string) (pa parsedArgs) {
 	return pa
 }
 
+func isPlaylistURL(rawURL string) bool {
+	if strings.Contains(rawURL, "/playlist?list=") || strings.Contains(rawURL, "/playlist?") {
+		return true
+	}
+	u, err := url.Parse(rawURL)
+	if err == nil && strings.Contains(u.Path, "playlist") && u.Query().Get("list") != "" {
+		return true
+	}
+	return false
+}
+
 func printHelp() {
 	fmt.Println(`VampYTD`)
 	fmt.Println(`Usage: VampYTD [FLAGS] "URL"`)
-	fmt.Println(`  -q [opts] : Quick Mode (e.g. -q 1080p,av1). Leave empty for fastest default max-quality download.`)
-	fmt.Println(`  -c        : Enable Cookies (Auto selects file)`)
-	fmt.Println(`  -d, --dir : Download directory (default ~/Downloads/VampYTD; VAMPYTD_DIR env also works)`)
-	fmt.Println(`  -t        : Trim Mode (e.g. -t 8:20 12:20)`)
-	fmt.Println(`  -U        : Update yt-dlp to latest version`)
+	fmt.Println(`  -q [opts]      : Quick Mode (e.g. -q 1080p,av1). Leave empty for fastest default max-quality download.`)
+	fmt.Println(`  -p, --playlist : Playlist Mode (download full playlist)`)
+	fmt.Println(`  -i, --items [r]: Playlist item selection / range (e.g. 1-10, 5, 8:)`)
+	fmt.Println(`  -c             : Enable Cookies (Auto selects file)`)
+	fmt.Println(`  -d, --dir      : Download directory (default ~/Downloads/VampYTD; VAMPYTD_DIR env also works)`)
+	fmt.Println(`  -t             : Trim Mode (e.g. -t 8:20 12:20)`)
+	fmt.Println(`  -U             : Update yt-dlp to latest version`)
 }
 
 // trimTimeRe matches the start of a trim timestamp (e.g. "8:20").
@@ -302,6 +332,8 @@ func parseQuickOptions(quickOptions string) (maxRes int, reqCodec string) {
 			maxRes = 2160
 		case "2k":
 			maxRes = 1440
+		case "audio":
+			reqCodec = "audio"
 		default:
 			// Strip one trailing "p" ("1080p" -> 1080); anything else that
 			// isn't a plain number is treated as a codec name.
@@ -819,32 +851,7 @@ func pickFormatsFallback(formats []Format) string {
 // FEATURE 3: MKV MERGE + METADATA EMBEDDING
 // ==============================================================================
 
-func runDownload(format string, cookieCmd, trimCmd []string, url string) {
-	fmt.Println(cyan(">> Starting Download..."))
-
-	finalArgs := []string{}
-	finalArgs = append(finalArgs, clientArgs...)
-	finalArgs = append(finalArgs, cookieCmd...)
-	finalArgs = append(finalArgs, trimCmd...)
-	finalArgs = append(finalArgs, "-P", downloadDir)
-	finalArgs = append(finalArgs, "-o", template)
-
-	// Embed options + container options
-	finalArgs = append(finalArgs,
-		"--merge-output-format", "mkv",
-		"--audio-multistreams",
-		"--video-multistreams",
-		"--embed-chapters",
-		"--embed-thumbnail",
-		"--convert-thumbnails", "png",
-	)
-
-	if strings.TrimSpace(format) != "" {
-		finalArgs = append(finalArgs, "-f", format)
-	}
-
-	finalArgs = append(finalArgs, url)
-
+func executeYTDLP(finalArgs []string) {
 	cmd := exec.Command(ytdlp, finalArgs...)
 
 	stdout, err := cmd.StdoutPipe()
@@ -912,6 +919,163 @@ func runDownload(format string, cookieCmd, trimCmd []string, url string) {
 	if err := cmd.Wait(); err != nil {
 		die("yt-dlp exited with error: " + err.Error())
 	}
+}
+
+func runDownload(format string, cookieCmd, trimCmd []string, url string) {
+	fmt.Println(cyan(">> Starting Download..."))
+
+	finalArgs := []string{}
+	finalArgs = append(finalArgs, clientArgs...)
+	finalArgs = append(finalArgs, cookieCmd...)
+	finalArgs = append(finalArgs, trimCmd...)
+	finalArgs = append(finalArgs, "--no-playlist")
+	finalArgs = append(finalArgs, "-P", downloadDir)
+	finalArgs = append(finalArgs, "-o", template)
+
+	// Embed options + container options
+	finalArgs = append(finalArgs,
+		"--merge-output-format", "mkv",
+		"--audio-multistreams",
+		"--video-multistreams",
+		"--embed-chapters",
+		"--embed-thumbnail",
+		"--convert-thumbnails", "png",
+	)
+
+	if strings.TrimSpace(format) != "" {
+		finalArgs = append(finalArgs, "-f", format)
+	}
+
+	finalArgs = append(finalArgs, url)
+	executeYTDLP(finalArgs)
+}
+
+type PlaylistMetadata struct {
+	Title         string `json:"title"`
+	Uploader      string `json:"uploader"`
+	PlaylistCount int    `json:"playlist_count"`
+	Entries       []struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	} `json:"entries"`
+}
+
+func fetchPlaylistMetadata(url string, cookieCmd []string) PlaylistMetadata {
+	args := append([]string(nil), clientArgs...)
+	args = append(args, cookieCmd...)
+	args = append(args, "--flat-playlist", "--dump-single-json", url)
+
+	fmt.Println(yellow(">> Fetching playlist metadata..."))
+	out, err := exec.Command(ytdlp, args...).Output()
+	if err != nil {
+		return PlaylistMetadata{Title: "Playlist"}
+	}
+	var meta PlaylistMetadata
+	_ = json.Unmarshal(out, &meta)
+	return meta
+}
+
+func promptPlaylistPreset() string {
+	fmt.Println(cyan("\n>> Select Quality Preset for Playlist:"))
+	fmt.Println("   [1] Best Available (Highest quality video + audio)")
+	fmt.Println("   [2] 2160p (4K UHD)")
+	fmt.Println("   [3] 1440p (2K QHD)")
+	fmt.Println("   [4] 1080p (Full HD)")
+	fmt.Println("   [5] 720p (HD)")
+	fmt.Println("   [6] Audio Only (Best Audio stream - Opus/M4A)")
+	ans := prompt(dkCyan("Choice [1-6] (Default 1): "))
+	switch strings.TrimSpace(ans) {
+	case "2":
+		return "2160p"
+	case "3":
+		return "1440p"
+	case "4":
+		return "1080p"
+	case "5":
+		return "720p"
+	case "6":
+		return "audio"
+	default:
+		return "best"
+	}
+}
+
+func buildPlaylistFormat(preset string, reqCodec string) (format string, isAudio bool) {
+	p := strings.ToLower(strings.TrimSpace(preset))
+	switch p {
+	case "audio", "6":
+		return "ba/b", true
+	case "720p", "5":
+		if reqCodec != "" {
+			return fmt.Sprintf("bv*[height<=720][vcodec*=%s]+ba/bv*[height<=720]+ba/b[height<=720]/best", reqCodec), false
+		}
+		return "bv*[height<=720]+ba/b[height<=720]/best", false
+	case "1080p", "4":
+		if reqCodec != "" {
+			return fmt.Sprintf("bv*[height<=1080][vcodec*=%s]+ba/bv*[height<=1080]+ba/b[height<=1080]/best", reqCodec), false
+		}
+		return "bv*[height<=1080]+ba/b[height<=1080]/best", false
+	case "1440p", "3":
+		if reqCodec != "" {
+			return fmt.Sprintf("bv*[height<=1440][vcodec*=%s]+ba/bv*[height<=1440]+ba/b[height<=1440]/best", reqCodec), false
+		}
+		return "bv*[height<=1440]+ba/b[height<=1440]/best", false
+	case "2160p", "4k", "2":
+		if reqCodec != "" {
+			return fmt.Sprintf("bv*[height<=2160][vcodec*=%s]+ba/bv*[height<=2160]+ba/b[height<=2160]/best", reqCodec), false
+		}
+		return "bv*[height<=2160]+ba/b[height<=2160]/best", false
+	case "best", "1", "":
+		fallthrough
+	default:
+		if reqCodec != "" {
+			return fmt.Sprintf("bv*[vcodec*=%s]+ba/bv*+ba/b", reqCodec), false
+		}
+		return "bv*+ba/b", false
+	}
+}
+
+func runPlaylistDownload(format string, isAudio bool, cookieCmd []string, playlistItems string, url string) {
+	fmt.Println(cyan(">> Starting Playlist Download..."))
+
+	finalArgs := []string{}
+	finalArgs = append(finalArgs, clientArgs...)
+	finalArgs = append(finalArgs, cookieCmd...)
+	finalArgs = append(finalArgs, "--yes-playlist", "--ignore-errors")
+	finalArgs = append(finalArgs, "-P", downloadDir)
+
+	playlistSubfolder := "%(playlist_title|playlist)s"
+	var filenameTemplate string
+	if isAudio {
+		filenameTemplate = filepath.Join(playlistSubfolder, "%(playlist_index)02d - %(title)s [%(id)s] [%(acodec)s].%(ext)s")
+		finalArgs = append(finalArgs,
+			"-o", filenameTemplate,
+			"-f", format,
+			"--embed-thumbnail",
+			"--convert-thumbnails", "png",
+		)
+	} else {
+		filenameTemplate = filepath.Join(playlistSubfolder, "%(playlist_index)02d - %(title)s [%(id)s] [%(height)sp] [%(vcodec)s].%(ext)s")
+		finalArgs = append(finalArgs,
+			"-o", filenameTemplate,
+			"--merge-output-format", "mkv",
+			"--audio-multistreams",
+			"--video-multistreams",
+			"--embed-chapters",
+			"--embed-thumbnail",
+			"--convert-thumbnails", "png",
+		)
+		if strings.TrimSpace(format) != "" {
+			finalArgs = append(finalArgs, "-f", format)
+		}
+	}
+
+	if strings.TrimSpace(playlistItems) != "" {
+		finalArgs = append(finalArgs, "--playlist-items", strings.TrimSpace(playlistItems))
+	}
+
+	finalArgs = append(finalArgs, url)
+	executeYTDLP(finalArgs)
 }
 
 // ==============================================================================
@@ -998,6 +1162,53 @@ func main() {
 	// --- Ensure download dir exists ---
 	if err := os.MkdirAll(filepath.Clean(downloadDir), 0755); err != nil {
 		die("Cannot create download directory: " + err.Error())
+	}
+
+	// --- Playlist Mode Execution ---
+	isPlaylist := (pa.playlistMode || isPlaylistURL(url)) && !pa.noPlaylistMode
+	if isPlaylist {
+		fmt.Println(green(">> [Mode] Playlist Download"))
+		meta := fetchPlaylistMetadata(url, cookieCmd)
+		if meta.Title != "" {
+			if len(meta.Entries) > 0 {
+				fmt.Println(cyan(fmt.Sprintf(">> Playlist: %s (%d videos)", meta.Title, len(meta.Entries))))
+			} else if meta.PlaylistCount > 0 {
+				fmt.Println(cyan(fmt.Sprintf(">> Playlist: %s (%d videos)", meta.Title, meta.PlaylistCount)))
+			} else {
+				fmt.Println(cyan(fmt.Sprintf(">> Playlist: %s", meta.Title)))
+			}
+		}
+
+		playlistItems := pa.playlistItems
+		var formatString string
+		var isAudio bool
+
+		if quickMode {
+			var preset string
+			if reqCodec == "audio" {
+				preset = "audio"
+			} else if maxRes > 0 {
+				preset = strconv.Itoa(maxRes) + "p"
+			} else {
+				preset = "best"
+			}
+			formatString, isAudio = buildPlaylistFormat(preset, reqCodec)
+			fmt.Println(green(fmt.Sprintf(">> [Quick Mode] Preset: %s, Codec: %s", preset, reqCodec)))
+		} else {
+			preset := promptPlaylistPreset()
+			if playlistItems == "" {
+				ans := prompt(dkCyan("Enter items/range (e.g. 1-10, 5, 8: or press Enter for ALL): "))
+				playlistItems = strings.TrimSpace(ans)
+			}
+			formatString, isAudio = buildPlaylistFormat(preset, reqCodec)
+		}
+
+		runPlaylistDownload(formatString, isAudio, cookieCmd, playlistItems, url)
+		fmt.Println(green(">> Done! Playlist saved under " + downloadDir))
+		if isSpawned {
+			showToast("VampYTD Playlist Download Complete", "Playlist saved under "+downloadDir)
+		}
+		return
 	}
 
 	// --- Execute ---

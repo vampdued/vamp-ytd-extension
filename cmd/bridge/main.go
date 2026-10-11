@@ -20,11 +20,13 @@ import (
 )
 
 type Payload struct {
-	Action  string `json:"action,omitempty"`
-	URL     string `json:"url"`
-	Mode    string `json:"mode"`
-	Codec   string `json:"codec"`
-	Cookies bool   `json:"cookies"`
+	Action   string `json:"action,omitempty"`
+	URL      string `json:"url"`
+	Mode     string `json:"mode"`
+	Codec    string `json:"codec"`
+	Cookies  bool   `json:"cookies"`
+	Playlist bool   `json:"playlist,omitempty"`
+	Items    string `json:"items,omitempty"`
 }
 
 const maxRequestBody = 64 * 1024
@@ -116,6 +118,13 @@ func validatePayload(p Payload) error {
 	if !validModes[p.Mode] || !validCodecs[p.Codec] {
 		return fmt.Errorf("unsupported mode or codec")
 	}
+	if p.Items != "" {
+		for _, ch := range p.Items {
+			if !(ch >= '0' && ch <= '9' || ch == '-' || ch == ',' || ch == ':') {
+				return fmt.Errorf("invalid playlist items format")
+			}
+		}
+	}
 	return nil
 }
 
@@ -143,6 +152,12 @@ func processPayload(p Payload) error {
 	var ytdArgs []string
 	if p.Cookies {
 		ytdArgs = append(ytdArgs, "-c")
+	}
+	if p.Playlist {
+		ytdArgs = append(ytdArgs, "-p")
+		if strings.TrimSpace(p.Items) != "" {
+			ytdArgs = append(ytdArgs, "--items", strings.TrimSpace(p.Items))
+		}
 	}
 
 	var quickOpt string

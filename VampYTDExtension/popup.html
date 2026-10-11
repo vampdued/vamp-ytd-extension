@@ -310,6 +310,42 @@
     .yt-primary-btn:focus-visible { outline: 2px solid var(--yt-red); outline-offset: 1px; }
     .yt-primary-btn:disabled { opacity: 0.65; cursor: wait; }
 
+    .media-card-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .playlist-sub-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-muted);
+      color: var(--text);
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 600;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .playlist-sub-btn:hover {
+      background: var(--surface-hover);
+      border-color: var(--text-secondary);
+    }
+    .playlist-sub-btn:focus-visible {
+      outline: 2px solid var(--border-focus);
+    }
+    .playlist-sub-btn:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
     /* Borderless Section Rows */
     .section-list {
       display: flex;
@@ -712,10 +748,16 @@
             <span class="detected-pill">Detected</span>
           </div>
           <h1 class="active-video-title" id="active-video-title">Detecting video…</h1>
-          <button class="yt-primary-btn" type="button" id="active-download-btn">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
-            <span>Download Video</span>
-          </button>
+          <div class="media-card-actions">
+            <button class="yt-primary-btn" type="button" id="active-download-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
+              <span id="active-download-label">Download Video</span>
+            </button>
+            <button class="playlist-sub-btn" type="button" id="active-download-playlist-btn" hidden>
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm14 0v6l5-3z"/></svg>
+              <span>Download Playlist</span>
+            </button>
+          </div>
         </div>
 
         <!-- Compact Borderless Connection & Telemetry List -->

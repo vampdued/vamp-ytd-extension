@@ -76,6 +76,12 @@ func TestParseArgsFrom(t *testing.T) {
 		{"dir flag", []string{"--dir", `C:\Vids`, "https://youtu.be/abc"}, parsedArgs{dirFlag: `C:\Vids`, url: "https://youtu.be/abc"}},
 		{"dir short", []string{"-d", `/tmp/vids`, "https://youtu.be/abc"}, parsedArgs{dirFlag: `/tmp/vids`, url: "https://youtu.be/abc"}},
 		{"dir without value", []string{"--dir"}, parsedArgs{}},
+		{"playlist short", []string{"-p", "https://youtube.com/playlist?list=123"}, parsedArgs{playlistMode: true, url: "https://youtube.com/playlist?list=123"}},
+		{"playlist long", []string{"--playlist", "https://youtube.com/playlist?list=123"}, parsedArgs{playlistMode: true, url: "https://youtube.com/playlist?list=123"}},
+		{"no playlist", []string{"--no-playlist", "https://youtube.com/watch?v=123"}, parsedArgs{noPlaylistMode: true, url: "https://youtube.com/watch?v=123"}},
+		{"items short", []string{"-i", "1-10", "https://youtube.com/playlist?list=123"}, parsedArgs{playlistItems: "1-10", url: "https://youtube.com/playlist?list=123"}},
+		{"items long", []string{"--items", "5", "https://youtube.com/playlist?list=123"}, parsedArgs{playlistItems: "5", url: "https://youtube.com/playlist?list=123"}},
+		{"items equals", []string{"--playlist-items=1-20", "https://youtube.com/playlist?list=123"}, parsedArgs{playlistItems: "1-20", url: "https://youtube.com/playlist?list=123"}},
 		{"url only", []string{"https://youtube.com/watch?v=123"}, parsedArgs{url: "https://youtube.com/watch?v=123"}},
 		{"empty", []string{}, parsedArgs{}},
 	}
@@ -85,6 +91,46 @@ func TestParseArgsFrom(t *testing.T) {
 				t.Errorf("parseArgsFrom(%v) = %+v, want %+v", tt.args, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestIsPlaylistURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"https://www.youtube.com/playlist?list=PL1234567890", true},
+		{"https://youtube.com/playlist?list=PL1234567890", true},
+		{"https://www.youtube.com/watch?v=abc&list=PL1234567890", false},
+		{"https://www.youtube.com/watch?v=abc", false},
+		{"https://youtu.be/abc", false},
+	}
+	for _, tt := range tests {
+		if got := isPlaylistURL(tt.url); got != tt.want {
+			t.Errorf("isPlaylistURL(%q) = %v, want %v", tt.url, got, tt.want)
+		}
+	}
+}
+
+func TestBuildPlaylistFormat(t *testing.T) {
+	tests := []struct {
+		preset   string
+		codec    string
+		wantFmt  string
+		wantAudio bool
+	}{
+		{"best", "", "bv*+ba/b", false},
+		{"1080p", "", "bv*[height<=1080]+ba/b[height<=1080]/best", false},
+		{"1080p", "av1", "bv*[height<=1080][vcodec*=av1]+ba/bv*[height<=1080]+ba/b[height<=1080]/best", false},
+		{"audio", "", "ba/b", true},
+		{"6", "", "ba/b", true},
+	}
+	for _, tt := range tests {
+		gotFmt, gotAudio := buildPlaylistFormat(tt.preset, tt.codec)
+		if gotFmt != tt.wantFmt || gotAudio != tt.wantAudio {
+			t.Errorf("buildPlaylistFormat(%q, %q) = (%q, %v), want (%q, %v)",
+				tt.preset, tt.codec, gotFmt, gotAudio, tt.wantFmt, tt.wantAudio)
+		}
 	}
 }
 
@@ -102,8 +148,8 @@ func TestParseArgsFromSpawned(t *testing.T) {
 
 func TestParseQuickOptions(t *testing.T) {
 	tests := []struct {
-		input   string
-		maxRes  int
+		input    string
+		maxRes   int
 		reqCodec string
 	}{
 		{"1080p", 1080, ""},
@@ -118,6 +164,7 @@ func TestParseQuickOptions(t *testing.T) {
 		{"h264", 0, "h264"},
 		{"1080P,AV1", 1080, "av1"},
 		{" 720p , hevc ", 720, "hevc"},
+		{"audio", 0, "audio"},
 		{"", 0, ""},
 		{"1080p,,vp9", 1080, "vp9"},
 	}

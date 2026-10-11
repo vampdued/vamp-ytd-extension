@@ -20,6 +20,9 @@ func TestValidatePayload(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "youtube", payload: Payload{URL: "https://www.youtube.com/watch?v=abc", Mode: "quick-1080p", Codec: "av1"}},
+		{name: "playlist URL", payload: Payload{URL: "https://www.youtube.com/playlist?list=PL123", Playlist: true, Mode: "quick-max"}},
+		{name: "valid items", payload: Payload{URL: "https://www.youtube.com/playlist?list=PL123", Playlist: true, Items: "1-10,15:"}},
+		{name: "invalid items", payload: Payload{URL: "https://www.youtube.com/playlist?list=PL123", Playlist: true, Items: "1;drop"}, wantErr: true},
 		{name: "short URL", payload: Payload{URL: "https://youtu.be/abc", Mode: "interactive", Codec: "auto"}},
 		{name: "hotstar", payload: Payload{URL: "https://www.jiohotstar.com/movies/example", Mode: "quick-max"}},
 		{name: "hevc codec", payload: Payload{URL: "https://www.youtube.com/watch?v=abc", Mode: "quick-4k", Codec: "hevc"}},
@@ -121,6 +124,40 @@ func TestNativeHostProcessesDownloadRequest(t *testing.T) {
 		t.Fatalf("unexpected native response: %#v", response)
 	}
 	want := []string{"-q", "1080p,av1", "--spawned", "https://www.youtube.com/watch?v=abc"}
+	if len(gotArgs) != len(want) {
+		t.Fatalf("launcher args = %#v, want %#v", gotArgs, want)
+	}
+	for i := range want {
+		if gotArgs[i] != want[i] {
+			t.Fatalf("launcher args = %#v, want %#v", gotArgs, want)
+		}
+	}
+}
+
+func TestNativeHostProcessesPlaylistDownloadRequest(t *testing.T) {
+	originalLauncher := launchDownloader
+	t.Cleanup(func() { launchDownloader = originalLauncher })
+	var gotArgs []string
+	launchDownloader = func(_ string, args []string) error {
+		gotArgs = append([]string(nil), args...)
+		return nil
+	}
+
+	input := bytes.NewReader(nativeFrame(t, Payload{
+		URL:      "https://www.youtube.com/playlist?list=PL123",
+		Mode:     "quick-max",
+		Playlist: true,
+		Items:    "1-5",
+	}))
+	var output bytes.Buffer
+	if err := runNativeHost(input, &output); err != nil {
+		t.Fatal(err)
+	}
+	response := readNativeResponse(t, &output)
+	if !response.OK || response.Error != "" {
+		t.Fatalf("unexpected native response: %#v", response)
+	}
+	want := []string{"-p", "--items", "1-5", "-q", "--spawned", "https://www.youtube.com/playlist?list=PL123"}
 	if len(gotArgs) != len(want) {
 		t.Fatalf("launcher args = %#v, want %#v", gotArgs, want)
 	}

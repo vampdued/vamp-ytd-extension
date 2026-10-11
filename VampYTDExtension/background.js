@@ -44,19 +44,25 @@ function showBadgeFeedback(ok) {
 }
 
 // Reads stored settings then dispatches the download payload to the native host.
-function sendToBridge(url) {
+function sendToBridge(url, isPlaylist = false, items = '') {
     return new Promise((resolve) => {
         chrome.storage.local.get({
             downloadMode: 'interactive',
             preferredCodec: 'auto',
             enableCookies: false
-        }, (items) => {
+        }, (stored) => {
             const payload = {
                 url,
-                mode: items.downloadMode,
-                codec: items.preferredCodec,
-                cookies: items.enableCookies
+                mode: stored.downloadMode,
+                codec: stored.preferredCodec,
+                cookies: stored.enableCookies
             };
+            if (isPlaylist) {
+                payload.playlist = true;
+                if (items) {
+                    payload.items = items;
+                }
+            }
 
             sendNative(payload)
                 .then(() => {
@@ -106,7 +112,18 @@ chrome.runtime.onInstalled.addListener(() => {
         ]
     });
 
-    // Right-click on the active page itself
+    // Right-click on a playlist link
+    chrome.contextMenus.create({
+        id: 'vampytd-download-playlist-link',
+        title: 'Download Playlist with VampYTD',
+        contexts: ['link'],
+        targetUrlPatterns: [
+            '*://*.youtube.com/playlist*',
+            '*://*.youtube.com/watch*list=*'
+        ]
+    });
+
+    // Right-click on the active page itself (video)
     chrome.contextMenus.create({
         id: 'vampytd-download-page',
         title: 'Download Video on Page',
@@ -118,24 +135,36 @@ chrome.runtime.onInstalled.addListener(() => {
             '*://*.jiohotstar.com/*'
         ]
     });
+
+    // Right-click on the active page itself (playlist page)
+    chrome.contextMenus.create({
+        id: 'vampytd-download-playlist-page',
+        title: 'Download Playlist on Page',
+        contexts: ['page'],
+        documentUrlPatterns: [
+            '*://*.youtube.com/playlist*',
+            '*://*.youtube.com/watch*list=*'
+        ]
+    });
 });
 
 // --- Context Menu Click Handler ---
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    const targetUrl = (info.menuItemId === 'vampytd-download-link')
-        ? info.linkUrl
-        : (info.pageUrl || tab?.url);
+    const isPlaylistMenu = info.menuItemId === 'vampytd-download-playlist-link' || info.menuItemId === 'vampytd-download-playlist-page';
+    const isLinkMenu = info.menuItemId === 'vampytd-download-link' || info.menuItemId === 'vampytd-download-playlist-link';
+
+    const targetUrl = isLinkMenu ? info.linkUrl : (info.pageUrl || tab?.url);
 
     if (!targetUrl) return;
 
-    const res = await sendToBridge(targetUrl);
+    const res = await sendToBridge(targetUrl, isPlaylistMenu);
     showBadgeFeedback(res.ok);
 
     if (tab?.id) {
         chrome.tabs.sendMessage(tab.id, {
             action: 'toast',
             ok: res.ok,
-            message: res.ok ? 'Sent to VampYTD' : (res.error || 'Bridge offline')
+            message: res.ok ? (isPlaylistMenu ? 'Playlist sent to VampYTD' : 'Sent to VampYTD') : (res.error || 'Bridge offline')
         }).catch(() => {});
     }
 });
@@ -153,7 +182,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         return true;
     }
     if (message.action === 'download' && message.url) {
-        sendToBridge(message.url).then(sendResponse);
+        sendToBridge(message.url, Boolean(message.playlist), message.items || '').then(sendResponse);
         return true;
     }
 });

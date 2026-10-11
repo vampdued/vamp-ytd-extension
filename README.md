@@ -99,6 +99,10 @@ ytd -q 4k,hevc "URL"
 # Lossless section trim
 ytd -t 01:20 02:45 "URL"
 
+# Download playlist (interactive quality and range prompt, or quick mode)
+ytd -p "https://www.youtube.com/playlist?list=..."
+ytd -p -q 1080p,av1 -i 1-10 "https://www.youtube.com/playlist?list=..."
+
 # Use site-specific cookie file
 ytd -c "URL"
 

@@ -16,10 +16,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const codecSelector = document.getElementById('codec-selector');
   const cookiesToggle = document.getElementById('cookies-toggle');
 
-  const activeVideoCard   = document.getElementById('active-video-card');
-  const activeVideoTitle  = document.getElementById('active-video-title');
-  const activeVideoBadge  = document.getElementById('active-video-badge');
-  const activeDownloadBtn = document.getElementById('active-download-btn');
+  const activeVideoCard           = document.getElementById('active-video-card');
+  const activeVideoTitle          = document.getElementById('active-video-title');
+  const activeVideoBadge          = document.getElementById('active-video-badge');
+  const activeDownloadBtn         = document.getElementById('active-download-btn');
+  const activeDownloadPlaylistBtn = document.getElementById('active-download-playlist-btn');
+  const activeDownloadLabel       = document.getElementById('active-download-label');
 
   const toolsStatus  = document.getElementById('tools-status');
   const toolsSummary = document.getElementById('tools-summary');
@@ -169,6 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
       currentTabUrl = activeTab.url;
       let isSupported = false;
+      let isPurePlaylist = false;
+      let hasPlaylist = false;
       let siteName = 'Video';
 
       try {
@@ -176,9 +180,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const host = u.hostname.toLowerCase();
 
         if (host.includes('youtube.com') || host.includes('youtu.be')) {
-          if (u.pathname === '/watch' || u.pathname.startsWith('/shorts/') || host === 'youtu.be') {
+          if (u.pathname === '/playlist' && u.searchParams.has('list')) {
+            isSupported = true;
+            isPurePlaylist = true;
+            siteName = 'Playlist';
+          } else if (u.pathname === '/watch' || u.pathname.startsWith('/shorts/') || host === 'youtu.be') {
             isSupported = true;
             siteName = u.pathname.startsWith('/shorts/') ? 'Shorts' : 'YouTube';
+            if (u.pathname === '/watch' && u.searchParams.has('list')) {
+              hasPlaylist = true;
+            }
           }
 
           // Check if YouTube is currently in Dark Mode to match automatically
@@ -195,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (isSupported && activeVideoCard) {
         activeVideoCard.hidden = false;
-        let cleanTitle = activeTab.title || 'Active video';
+        let cleanTitle = activeTab.title || (isPurePlaylist ? 'Active playlist' : 'Active video');
         cleanTitle = cleanTitle.replace(/\s*-\s*YouTube$/, '').replace(/\s*\|\s*Hotstar$/, '');
         activeVideoTitle.textContent = cleanTitle;
         activeVideoBadge.textContent = siteName;
@@ -203,6 +214,17 @@ document.addEventListener('DOMContentLoaded', () => {
           activeVideoBadge.classList.add('hotstar');
         } else {
           activeVideoBadge.classList.remove('hotstar');
+        }
+
+        if (isPurePlaylist) {
+          if (activeDownloadLabel) activeDownloadLabel.textContent = 'Download Playlist';
+          if (activeDownloadPlaylistBtn) activeDownloadPlaylistBtn.hidden = true;
+        } else if (hasPlaylist) {
+          if (activeDownloadLabel) activeDownloadLabel.textContent = 'Download Video';
+          if (activeDownloadPlaylistBtn) activeDownloadPlaylistBtn.hidden = false;
+        } else {
+          if (activeDownloadLabel) activeDownloadLabel.textContent = 'Download Video';
+          if (activeDownloadPlaylistBtn) activeDownloadPlaylistBtn.hidden = true;
         }
       }
     });
@@ -215,7 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
       activeDownloadBtn.disabled = true;
       activeDownloadBtn.innerHTML = `<span>Sending…</span>`;
 
-      chrome.runtime.sendMessage({ action: 'download', url: currentTabUrl }, (response) => {
+      const isPlaylistDownload = (activeDownloadLabel?.textContent === 'Download Playlist');
+
+      chrome.runtime.sendMessage({ action: 'download', url: currentTabUrl, playlist: isPlaylistDownload }, (response) => {
         const err = chrome.runtime.lastError;
         const ok = !err && Boolean(response?.ok);
 
@@ -231,9 +255,43 @@ document.addEventListener('DOMContentLoaded', () => {
           activeDownloadBtn.disabled = false;
           activeDownloadBtn.innerHTML = `
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a1 1 0 0 0-1 1v11.586l-4.293-4.293a1 1 0 1 0-1.414 1.414L12 18.414l6.707-6.707a1 1 0 1 0-1.414-1.414L13 14.586V3a1 1 0 0 0-1-1Zm7 18H5a1 1 0 0 0 0 2h14a1 1 0 0 0 0-2Z"/></svg>
-            <span>Download Video</span>
+            <span id="active-download-label">${isPlaylistDownload ? 'Download Playlist' : 'Download Video'}</span>
           `;
           activeDownloadBtn.style.background = '';
+        }, 2200);
+      });
+    });
+  }
+
+  if (activeDownloadPlaylistBtn) {
+    activeDownloadPlaylistBtn.addEventListener('click', () => {
+      if (!currentTabUrl) return;
+
+      activeDownloadPlaylistBtn.disabled = true;
+      activeDownloadPlaylistBtn.innerHTML = `<span>Sending…</span>`;
+
+      chrome.runtime.sendMessage({ action: 'download', url: currentTabUrl, playlist: true }, (response) => {
+        const err = chrome.runtime.lastError;
+        const ok = !err && Boolean(response?.ok);
+
+        if (ok) {
+          activeDownloadPlaylistBtn.innerHTML = `<span>✓ Playlist Sent</span>`;
+          activeDownloadPlaylistBtn.style.borderColor = '#059669';
+          activeDownloadPlaylistBtn.style.color = '#059669';
+        } else {
+          activeDownloadPlaylistBtn.innerHTML = `<span>⚠ Bridge offline</span>`;
+          activeDownloadPlaylistBtn.style.borderColor = '#dc2626';
+          activeDownloadPlaylistBtn.style.color = '#dc2626';
+        }
+
+        setTimeout(() => {
+          activeDownloadPlaylistBtn.disabled = false;
+          activeDownloadPlaylistBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm14 0v6l5-3z"/></svg>
+            <span>Download Playlist</span>
+          `;
+          activeDownloadPlaylistBtn.style.borderColor = '';
+          activeDownloadPlaylistBtn.style.color = '';
         }, 2200);
       });
     });
