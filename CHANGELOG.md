@@ -13,6 +13,18 @@
 - CI now runs `golangci-lint`; README notes tests are Windows-only by nature.
 - README documents the code-signing path (removes SmartScreen warning) and the `ExtensionInstallForcelist` true-1-click path for managed/enterprise installs.
 
+## 1.6.0 — 2026-10-11 — Full Stack Playlist Support
+
+### Added
+- **Playlist download support across CLI, Bridge, and Browser Extension**:
+  - `ytd`: New `-p`/`--playlist`, `--no-playlist`, and `-i`/`--items` flags for batch playlist downloads.
+  - Interactive playlist mode with unified quality preset picker (`1: Best`, `2: 4K`, `3: 1440p`, `4: 1080p`, `5: 720p`, `6: Audio Only`) and item range filtering.
+  - Audio-only preset retains source container without transcoding.
+  - Automatic download organization into dedicated subfolders (`Downloads/VampYTD/<Playlist Title>/`) with indexed filenames.
+  - Resilient downloads via `--ignore-errors` to skip private or restricted entries.
+  - Extension Popup: Active media card supports playlist detection with dual action buttons (**Download Video** and **Download Playlist**) on playlist watch pages, and a single **Download Playlist** CTA on playlist pages.
+  - Context Menus: Right-click **Download Playlist with VampYTD** for playlist links and pages.
+
 ## 1.5.2 — 2026-10-06
 
 ### Fixed
